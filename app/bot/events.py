@@ -1,11 +1,17 @@
+from datetime import datetime, timezone
 from typing import Any
 
-from nonebot import on_notice, on_request
-from nonebot.adapters.onebot.v11 import Bot, GroupDecreaseNoticeEvent, GroupRequestEvent
+from nonebot import on_message, on_notice, on_request
+from nonebot.adapters.onebot.v11 import (
+    Bot,
+    GroupDecreaseNoticeEvent,
+    GroupMessageEvent,
+    GroupRequestEvent,
+)
 from sqlmodel import Session, select
 
 from app.core.database import engine
-from app.models import JoinRequest, LeaveEvent, ManagedGroup
+from app.models import JoinRequest, LeaveEvent, ManagedGroup, MemberActivityStat
 from app.services.groups import get_recommended_group, render_redirect_message
 from app.services.rules import find_matching_rule
 
@@ -32,6 +38,7 @@ def extract_answer(comment: str) -> str:
 
 request_matcher = on_request(priority=5, block=False)
 notice_matcher = on_notice(priority=5, block=False)
+message_matcher = on_message(priority=99, block=False)
 
 
 @request_matcher.handle()
@@ -99,11 +106,50 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
         session.commit()
 
 
+@message_matcher.handle()
+async def handle_group_message(event: GroupMessageEvent) -> None:
+    now = datetime.now(timezone.utc)
+    stat_date = now.date().isoformat()
+    sender = getattr(event, "sender", None)
+    nickname = getattr(sender, "nickname", "") if sender else ""
+    card = getattr(sender, "card", "") if sender else ""
+    with Session(engine) as session:
+        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
+        if not group:
+            return
+        stat = session.exec(
+            select(MemberActivityStat).where(
+                MemberActivityStat.group_id == event.group_id,
+                MemberActivityStat.user_id == event.user_id,
+                MemberActivityStat.stat_date == stat_date,
+            )
+        ).first()
+        if not stat:
+            stat = MemberActivityStat(
+                group_id=event.group_id,
+                user_id=event.user_id,
+                stat_date=stat_date,
+                nickname=nickname,
+                card=card,
+                message_count=0,
+                first_active_at=now,
+            )
+        stat.nickname = nickname or stat.nickname
+        stat.card = card or stat.card
+        stat.message_count += 1
+        stat.last_active_at = now
+        session.add(stat)
+        session.commit()
+
+
 @notice_matcher.handle()
 async def handle_group_decrease(event: GroupDecreaseNoticeEvent) -> None:
     if event.notice_type != "group_decrease":
         return
     with Session(engine) as session:
+        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
+        if not group:
+            return
         session.add(
             LeaveEvent(
                 group_id=event.group_id,
@@ -113,8 +159,7 @@ async def handle_group_decrease(event: GroupDecreaseNoticeEvent) -> None:
                 raw_event=event_to_dict(event),
             )
         )
-        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
-        if group and group.current_members > 0:
+        if group.current_members > 0:
             group.current_members -= 1
             session.add(group)
         session.commit()

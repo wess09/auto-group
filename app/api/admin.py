@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -17,6 +17,7 @@ from app.models import (
     GroupFile,
     JoinRequest,
     LeaveEvent,
+    MemberActivityStat,
     ManagedGroup,
 )
 from app.models.entities import TaskStatus
@@ -62,17 +63,166 @@ def _patch_model(model: object, payload: object) -> None:
 @router.get("/dashboard", response_model=DashboardOut)
 def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
     del admin
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    trend_start = today_start - timedelta(days=6)
     recent_logs = session.exec(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(8)).all()
+    top_groups = session.exec(
+        select(ManagedGroup).order_by(ManagedGroup.current_members.desc()).limit(6)
+    ).all()
+    recent_leaves = session.exec(
+        select(LeaveEvent)
+        .where(LeaveEvent.group_id.in_(select(ManagedGroup.group_id)))
+        .order_by(LeaveEvent.created_at.desc())
+        .limit(8)
+    ).all()
+    join_breakdown_rows = session.exec(
+        select(JoinRequest.result, func.count(JoinRequest.id)).group_by(JoinRequest.result)
+    ).all()
+    audit_trend_rows = session.exec(
+        select(func.date(AuditLog.created_at), func.count(AuditLog.id))
+        .where(AuditLog.created_at >= trend_start)
+        .group_by(func.date(AuditLog.created_at))
+    ).all()
+    join_trend_rows = session.exec(
+        select(func.date(JoinRequest.created_at), func.count(JoinRequest.id))
+        .where(JoinRequest.created_at >= trend_start)
+        .group_by(func.date(JoinRequest.created_at))
+    ).all()
+    leave_trend_rows = session.exec(
+        select(func.date(LeaveEvent.created_at), func.count(LeaveEvent.id))
+        .where(
+            LeaveEvent.created_at >= trend_start,
+            LeaveEvent.group_id.in_(select(ManagedGroup.group_id)),
+        )
+        .group_by(func.date(LeaveEvent.created_at))
+    ).all()
+    message_trend_rows = session.exec(
+        select(MemberActivityStat.stat_date, func.sum(MemberActivityStat.message_count))
+        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
+        .group_by(MemberActivityStat.stat_date)
+    ).all()
+    active_group_rows = session.exec(
+        select(
+            MemberActivityStat.group_id,
+            func.sum(MemberActivityStat.message_count),
+            func.count(MemberActivityStat.user_id),
+        )
+        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
+        .group_by(MemberActivityStat.group_id)
+        .order_by(func.sum(MemberActivityStat.message_count).desc())
+        .limit(8)
+    ).all()
+    active_member_rows = session.exec(
+        select(
+            MemberActivityStat.group_id,
+            MemberActivityStat.user_id,
+            func.max(MemberActivityStat.nickname),
+            func.max(MemberActivityStat.card),
+            func.sum(MemberActivityStat.message_count),
+            func.max(MemberActivityStat.last_active_at),
+        )
+        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
+        .group_by(MemberActivityStat.group_id, MemberActivityStat.user_id)
+        .order_by(func.sum(MemberActivityStat.message_count).desc())
+        .limit(12)
+    ).all()
+    group_names = {
+        group.group_id: group.name or str(group.group_id)
+        for group in session.exec(select(ManagedGroup)).all()
+    }
+    audit_trend = {str(day): count for day, count in audit_trend_rows}
+    join_trend = {str(day): count for day, count in join_trend_rows}
+    leave_trend = {str(day): count for day, count in leave_trend_rows}
+    message_trend = {str(day): count or 0 for day, count in message_trend_rows}
+    activity_trend = []
+    for offset in range(7):
+        day = (trend_start + timedelta(days=offset)).date().isoformat()
+        activity_trend.append(
+            {
+                "date": day,
+                "admin_actions": audit_trend.get(day, 0),
+                "join_requests": join_trend.get(day, 0),
+                "leave_events": leave_trend.get(day, 0),
+                "messages": message_trend.get(day, 0),
+            }
+        )
     return DashboardOut(
         groups=session.exec(select(func.count(ManagedGroup.id))).one(),
         enabled_groups=session.exec(
             select(func.count(ManagedGroup.id)).where(ManagedGroup.enabled == True)  # noqa: E712
         ).one(),
         join_requests=session.exec(select(func.count(JoinRequest.id))).one(),
-        leave_events=session.exec(select(func.count(LeaveEvent.id))).one(),
+        leave_events=session.exec(
+            select(func.count(LeaveEvent.id)).where(
+                LeaveEvent.group_id.in_(select(ManagedGroup.group_id))
+            )
+        ).one(),
         announcements=session.exec(select(func.count(Announcement.id))).one(),
         files=session.exec(select(func.count(GroupFile.id))).one(),
         essence_messages=session.exec(select(func.count(EssenceMessage.id))).one(),
+        total_members=session.exec(select(func.sum(ManagedGroup.current_members))).one() or 0,
+        today_join_requests=session.exec(
+            select(func.count(JoinRequest.id)).where(JoinRequest.created_at >= today_start)
+        ).one(),
+        today_leave_events=session.exec(
+            select(func.count(LeaveEvent.id)).where(
+                LeaveEvent.created_at >= today_start,
+                LeaveEvent.group_id.in_(select(ManagedGroup.group_id)),
+            )
+        ).one(),
+        today_admin_actions=session.exec(
+            select(func.count(AuditLog.id)).where(AuditLog.created_at >= today_start)
+        ).one(),
+        today_messages=session.exec(
+            select(func.sum(MemberActivityStat.message_count)).where(
+                MemberActivityStat.stat_date == today_start.date().isoformat()
+            )
+        ).one()
+        or 0,
+        today_active_members=session.exec(
+            select(func.count(MemberActivityStat.id)).where(
+                MemberActivityStat.stat_date == today_start.date().isoformat(),
+                MemberActivityStat.message_count > 0,
+            )
+        ).one(),
+        join_result_breakdown=[
+            {"result": result or "unknown", "count": count}
+            for result, count in join_breakdown_rows
+        ],
+        activity_trend=activity_trend,
+        top_groups=[
+            {
+                "group_id": group.group_id,
+                "name": group.name or str(group.group_id),
+                "priority": group.priority,
+                "current_members": group.current_members,
+                "max_members": group.max_members,
+                "enabled": group.enabled,
+            }
+            for group in top_groups
+        ],
+        active_groups=[
+            {
+                "group_id": group_id,
+                "name": group_names.get(group_id, str(group_id)),
+                "message_count": int(message_count or 0),
+                "active_members": int(active_members or 0),
+            }
+            for group_id, message_count, active_members in active_group_rows
+        ],
+        active_members=[
+            {
+                "group_id": group_id,
+                "group_name": group_names.get(group_id, str(group_id)),
+                "user_id": user_id,
+                "nickname": card or nickname or str(user_id),
+                "message_count": int(message_count or 0),
+                "last_active_at": last_active_at,
+            }
+            for group_id, user_id, nickname, card, message_count, last_active_at in active_member_rows
+        ],
+        recent_leave_events=[event.model_dump(mode="json") for event in recent_leaves],
         recent_audit_logs=[log.model_dump(mode="json") for log in recent_logs],
     )
 
@@ -192,7 +342,12 @@ def join_requests(session: SessionDep, admin: AdminDep) -> list[JoinRequest]:
 @router.get("/leave-events")
 def leave_events(session: SessionDep, admin: AdminDep) -> list[LeaveEvent]:
     del admin
-    return session.exec(select(LeaveEvent).order_by(LeaveEvent.created_at.desc()).limit(200)).all()
+    return session.exec(
+        select(LeaveEvent)
+        .where(LeaveEvent.group_id.in_(select(ManagedGroup.group_id)))
+        .order_by(LeaveEvent.created_at.desc())
+        .limit(200)
+    ).all()
 
 
 @router.post("/dedupe/preview", response_model=DedupePreviewOut)

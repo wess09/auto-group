@@ -114,6 +114,18 @@ class DashboardOut(BaseModel):
     announcements: int
     files: int
     essence_messages: int
+    total_members: int
+    today_join_requests: int
+    today_leave_events: int
+    today_admin_actions: int
+    today_messages: int
+    today_active_members: int
+    join_result_breakdown: list[dict[str, Any]]
+    activity_trend: list[dict[str, Any]]
+    top_groups: list[dict[str, Any]]
+    active_groups: list[dict[str, Any]]
+    active_members: list[dict[str, Any]]
+    recent_leave_events: list[dict[str, Any]]
     recent_audit_logs: list[dict[str, Any]]
 
 

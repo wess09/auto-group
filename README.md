@@ -30,6 +30,14 @@ uv run auto-group
 
 默认监听 `http://127.0.0.1:8080`。
 
+也可以使用 NoneBot CLI 启动：
+
+```powershell
+uv run nb run
+```
+
+项目已经在 `pyproject.toml` 配置了 `[tool.nonebot]`，`nb run` 会加载 `app.bot.dashboard` 和 `app.bot.events`，因此机器人事件、数据库初始化和后台 API 都会一起启动。`nb run` 输出的“旧的项目格式”只是 nb-cli 的格式提示，不影响运行。
+
 LLBot/LLOneBot 反向 WS 地址配置为：
 
 ```text

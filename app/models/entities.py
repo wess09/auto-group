@@ -103,6 +103,20 @@ class LeaveEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class MemberActivityStat(SQLModel, table=True):
+    __tablename__ = "member_activity_stats"
+
+    id: int | None = Field(default=None, primary_key=True)
+    group_id: int = Field(index=True)
+    user_id: int = Field(index=True)
+    stat_date: str = Field(index=True)
+    nickname: str = ""
+    card: str = ""
+    message_count: int = 0
+    first_active_at: datetime = Field(default_factory=now_utc)
+    last_active_at: datetime = Field(default_factory=now_utc)
+
+
 class DedupeJob(SQLModel, table=True):
     __tablename__ = "dedupe_jobs"
 

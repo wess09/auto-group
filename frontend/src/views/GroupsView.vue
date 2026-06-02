@@ -11,7 +11,13 @@
       </div>
     </div>
     <div class="content-band">
-      <n-data-table :columns="columns" :data="groups" />
+      <n-data-table
+        ref="tableRef"
+        :columns="columns"
+        :data="groups"
+        :loading="ordering"
+        :row-key="rowKey"
+      />
     </div>
     <n-modal v-model:show="showModal" preset="card" title="群配置" style="width: min(720px, 96vw)">
       <n-form>
@@ -35,13 +41,26 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue'
-import { NButton, NPopconfirm, NSpace, NSwitch, useMessage, type DataTableColumns } from 'naive-ui'
+import { h, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import Sortable from 'sortablejs'
+import {
+  NButton,
+  NIcon,
+  NPopconfirm,
+  NSpace,
+  NSwitch,
+  useMessage,
+  type DataTableColumns
+} from 'naive-ui'
+import { GripVertical } from '@vicons/tabler'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api, type ManagedGroup } from '../api/client'
 
 const message = useMessage()
 const groups = ref<ManagedGroup[]>([])
+const tableRef = ref<unknown>(null)
+const ordering = ref(false)
+const sortable = ref<Sortable | null>(null)
 const showModal = ref(false)
 const editing = ref(false)
 const defaultForm = {
@@ -57,10 +76,36 @@ const defaultForm = {
 }
 const form = reactive({ ...defaultForm })
 
+function rowKey(row: ManagedGroup) {
+  return row.group_id
+}
+
 const columns: DataTableColumns<ManagedGroup> = [
+  {
+    title: '',
+    key: 'drag',
+    width: 44,
+    render: () =>
+      h(
+        'button',
+        {
+          class: 'drag-handle',
+          title: '拖动调整优先级',
+          type: 'button',
+          'aria-label': '拖动调整优先级'
+        },
+        [h(NIcon, { size: 18 }, { default: () => h(GripVertical) })]
+      )
+  },
   { title: '群号', key: 'group_id', width: 130 },
   { title: '群名', key: 'name' },
-  { title: '优先级', key: 'priority', width: 90 },
+  {
+    title: '优先级',
+    key: 'priority',
+    width: 120,
+    render: (row, index) =>
+      h('span', { class: 'priority-pill' }, `${row.priority} · 第 ${index + 1}`)
+  },
   { title: '人数', key: 'members', render: (row) => `${row.current_members}${row.max_members ? ` / ${row.max_members}` : ''}` },
   { title: '启用', key: 'enabled', width: 90, render: (row) => h(NSwitch, { value: row.enabled, 'onUpdate:value': (value: boolean) => toggle(row, value) }) },
   { title: '入群链接', key: 'join_url', ellipsis: { tooltip: true } },
@@ -83,6 +128,59 @@ const columns: DataTableColumns<ManagedGroup> = [
 async function load() {
   const { data } = await api.get('/admin/groups')
   groups.value = data
+  await nextTick()
+  bindSortable()
+}
+
+function bindSortable() {
+  const tableEl = (tableRef.value as { $el?: HTMLElement } | null)?.$el
+  const tbody = tableEl?.querySelector('.n-data-table-table tbody') as HTMLElement | null
+  if (!tbody) return
+  sortable.value?.destroy()
+  sortable.value = Sortable.create(tbody, {
+    animation: 160,
+    handle: '.drag-handle',
+    draggable: 'tr',
+    ghostClass: 'drag-row-ghost',
+    chosenClass: 'drag-row-chosen',
+    dragClass: 'drag-row-active',
+    onEnd: async ({ oldIndex, newIndex }) => {
+      if (oldIndex == null || newIndex == null || oldIndex === newIndex) return
+      await reorderGroups(oldIndex, newIndex)
+    }
+  })
+}
+
+async function reorderGroups(oldIndex: number, newIndex: number) {
+  const before = groups.value.map((group) => ({ ...group }))
+  const nextGroups = [...groups.value]
+  const [moved] = nextGroups.splice(oldIndex, 1)
+  nextGroups.splice(newIndex, 0, moved)
+  groups.value = applyPriorityByOrder(nextGroups)
+  ordering.value = true
+  try {
+    await Promise.all(
+      groups.value.map((group) =>
+        api.patch(`/admin/groups/${group.group_id}`, { priority: group.priority })
+      )
+    )
+    message.success('优先级已更新')
+  } catch (error) {
+    groups.value = before
+    message.error('优先级保存失败，已恢复原顺序')
+  } finally {
+    ordering.value = false
+    await nextTick()
+    bindSortable()
+  }
+}
+
+function applyPriorityByOrder(list: ManagedGroup[]) {
+  const base = Math.max(1000, list.length * 10)
+  return list.map((group, index) => ({
+    ...group,
+    priority: base - index * 10
+  }))
 }
 
 function openCreate() {
@@ -126,4 +224,5 @@ async function remove(groupId: number) {
 }
 
 onMounted(load)
+onBeforeUnmount(() => sortable.value?.destroy())
 </script>

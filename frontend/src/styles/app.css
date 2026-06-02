@@ -5,7 +5,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: #f4f6f3;
+  background: #fff;
   color: #17201d;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -19,11 +19,19 @@ a {
 
 .admin-shell {
   min-height: 100vh;
-  background: #f4f6f3;
+  background: #fff;
 }
 
 .admin-sider {
   border-right: 1px solid #dde4de;
+  min-height: 100vh;
+  background: #fff;
+}
+
+.admin-shell .n-layout-scroll-container,
+.admin-shell .n-layout-content {
+  min-height: 100vh;
+  background: #fff;
 }
 
 .brand {
@@ -81,7 +89,7 @@ a {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
 }
 
@@ -109,6 +117,201 @@ a {
   border: 1px solid #d9e2dc;
   border-radius: 8px;
   padding: 18px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.section-head h3 {
+  margin: 0;
+}
+
+.section-head span {
+  color: #60716b;
+  font-size: 13px;
+}
+
+.compact-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.compact-metric {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7faf8;
+  border: 1px solid #e3ebe6;
+}
+
+.compact-metric span,
+.group-rank-row span {
+  display: block;
+  color: #60716b;
+  font-size: 13px;
+}
+
+.compact-metric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+  color: #173f37;
+}
+
+.breakdown-list,
+.group-rank-list {
+  display: grid;
+  gap: 10px;
+}
+
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.breakdown-row strong {
+  font-size: 18px;
+  color: #173f37;
+}
+
+.trend-bars {
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.trend-day {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.trend-stack {
+  height: 130px;
+  width: 100%;
+  max-width: 54px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: #f7faf8;
+  border: 1px solid #e3ebe6;
+}
+
+.trend-bar {
+  width: 7px;
+  min-height: 6px;
+  border-radius: 999px;
+}
+
+.trend-bar.message {
+  background: #1f8fce;
+}
+
+.trend-bar.admin {
+  background: #245d4f;
+}
+
+.trend-bar.join {
+  background: #36a66a;
+}
+
+.trend-bar.leave {
+  background: #c66b3d;
+}
+
+.trend-label,
+.trend-count {
+  font-size: 12px;
+  color: #60716b;
+}
+
+.group-rank-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, 220px) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.rank-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: #e8eee9;
+  overflow: hidden;
+}
+
+.rank-meter div {
+  height: 100%;
+  border-radius: inherit;
+  background: #2f9f60;
+}
+
+.json-cell {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.drag-handle {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  color: #6b7a75;
+  background: transparent;
+  cursor: grab;
+}
+
+.drag-handle:hover {
+  color: #167044;
+  background: #edf7f1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-row-ghost {
+  opacity: 0.45;
+}
+
+.drag-row-chosen td {
+  background: #f4fbf7 !important;
+}
+
+.drag-row-active {
+  box-shadow: 0 8px 24px rgba(17, 46, 38, 0.14);
+}
+
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #f1f5f3;
+  color: #28423a;
+  font-variant-numeric: tabular-nums;
 }
 
 .form-grid {
@@ -162,5 +365,17 @@ a {
   .page-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .group-rank-row {
+    grid-template-columns: 1fr;
   }
 }
