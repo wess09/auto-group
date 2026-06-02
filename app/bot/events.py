@@ -6,10 +6,9 @@ import asyncio
 from nonebot import on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import (
     Bot,
-    GroupDecreaseNoticeEvent,
-    GroupIncreaseNoticeEvent,
     GroupMessageEvent,
     GroupRequestEvent,
+    NoticeEvent,
 )
 from sqlmodel import Session, select
 
@@ -154,7 +153,7 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
 
 
 @notice_matcher.handle()
-async def handle_group_member_change(event: GroupIncreaseNoticeEvent | GroupDecreaseNoticeEvent) -> None:
+async def handle_group_member_change(event: NoticeEvent) -> None:
     if event.notice_type not in {"group_increase", "group_decrease"}:
         return
     should_sync = False

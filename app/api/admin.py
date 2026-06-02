@@ -68,6 +68,10 @@ def _patch_model(model: object, payload: object) -> None:
         setattr(model, key, value)
 
 
+def _status_value(status: object) -> str:
+    return str(getattr(status, "value", status))
+
+
 @router.get("/dashboard", response_model=DashboardOut)
 def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
     del admin
@@ -439,7 +443,7 @@ async def dedupe_preview(session: SessionDep, admin: AdminDep) -> DedupePreviewO
     add_audit(session, "dedupe.preview.start", str(job.id), job.summary, admin)
     return DedupePreviewOut(
         job_id=job.id,
-        status=job.status,
+        status=_status_value(job.status),
         summary=job.summary,
         duplicate_users=0,
         actions=[],
@@ -454,7 +458,7 @@ def dedupe_job(job_id: int, session: SessionDep, admin: AdminDep) -> DedupePrevi
         raise HTTPException(status_code=404, detail="去重任务不存在")
     return DedupePreviewOut(
         job_id=data["job_id"],
-        status=str(data["status"]),
+        status=_status_value(data["status"]),
         summary=data["summary"],
         duplicate_users=data["duplicate_users"],
         actions=[

@@ -127,14 +127,19 @@ const whitelist = ref<any[]>([])
 const pollingTimer = ref<number | null>(null)
 const whitelistForm = reactive({ user_id: null as number | null, note: '' })
 
+function normalizeStatus(status: unknown) {
+  const value = String(status ?? 'idle')
+  return value.includes('.') ? value.split('.').pop() || value : value
+}
+
 const summary = computed(() => previewData.value?.summary ?? {})
-const jobStatus = computed(() => previewData.value?.status ?? 'idle')
+const jobStatus = computed(() => normalizeStatus(previewData.value?.status))
 const failedGroups = computed(() => summary.value.failed_groups ?? [])
 const skippedMembers = computed(() => summary.value.skipped_members ?? [])
 const previewRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && summary.value.phase !== 'kicking')
 const executeRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && ['execute_queued', 'kicking'].includes(summary.value.phase))
 const canExecute = computed(() =>
-  jobStatus.value === 'preview' &&
+  (jobStatus.value === 'preview' || summary.value.phase === 'preview_ready') &&
   (previewData.value?.actions?.length ?? 0) > 0 &&
   !failedGroups.value.length
 )
@@ -212,7 +217,7 @@ function clearPolling() {
 
 function shouldPoll(data: any) {
   const phase = data?.summary?.phase
-  return ['pending', 'running'].includes(data?.status) || ['execute_queued', 'kicking'].includes(phase)
+  return ['pending', 'running'].includes(normalizeStatus(data?.status)) || ['execute_queued', 'kicking'].includes(phase)
 }
 
 async function pollJob(jobId: number) {
