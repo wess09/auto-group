@@ -387,10 +387,19 @@ a {
 
 @media (max-width: 760px) {
   .admin-shell {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .admin-shell > .n-layout-scroll-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
   }
 
   .admin-sider {
+    flex: 0 0 auto !important;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -400,6 +409,13 @@ a {
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid #dde4de;
+  }
+
+  .admin-shell .n-layout-content {
+    display: block;
+    width: 100% !important;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .admin-sider .n-layout-sider-scroll-container {

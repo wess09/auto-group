@@ -1,5 +1,5 @@
 <template>
-  <n-layout has-sider class="admin-shell">
+  <n-layout :has-sider="!isMobile" class="admin-shell">
     <n-layout-sider
       class="admin-sider"
       bordered
