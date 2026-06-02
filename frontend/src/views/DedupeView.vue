@@ -60,6 +60,13 @@
         <n-alert v-if="failedGroups.length" type="warning" :bordered="false" style="margin-top: 14px">
           拉取失败群：{{ failedGroups.join('、') }}。预览不完整，已禁止执行踢人。
         </n-alert>
+        <n-data-table
+          v-if="failedDetails.length"
+          style="margin-top: 14px"
+          :columns="failedColumns"
+          :data="failedDetails"
+          :pagination="false"
+        />
       </div>
 
       <div class="content-band">
@@ -135,6 +142,7 @@ function normalizeStatus(status: unknown) {
 const summary = computed(() => previewData.value?.summary ?? {})
 const jobStatus = computed(() => normalizeStatus(previewData.value?.status))
 const failedGroups = computed(() => summary.value.failed_groups ?? [])
+const failedDetails = computed(() => summary.value.failed_details ?? [])
 const skippedMembers = computed(() => summary.value.skipped_members ?? [])
 const previewRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && summary.value.phase !== 'kicking')
 const executeRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && ['execute_queued', 'kicking'].includes(summary.value.phase))
@@ -180,6 +188,12 @@ const skippedColumns: DataTableColumns = [
   { title: '昵称', key: 'nickname' },
   { title: '原因', key: 'reason', width: 160 },
   { title: '所在群', key: 'groups', render: (row: any) => row.groups?.join('、') ?? '' }
+]
+
+const failedColumns: DataTableColumns = [
+  { title: '群号', key: 'group_id', width: 140 },
+  { title: '群名', key: 'name', width: 180, ellipsis: { tooltip: true } },
+  { title: '失败原因', key: 'error', ellipsis: { tooltip: true } }
 ]
 
 const whitelistColumns: DataTableColumns = [

@@ -1,4 +1,5 @@
 import asyncio
+from nonebot import logger
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
@@ -89,6 +90,8 @@ def _member_from_onebot(group_id: int, item: dict[str, Any]) -> GroupMember:
 
 async def refresh_group_members(session: Session, group: ManagedGroup) -> int:
     members = await onebot.get_group_member_list(group.group_id)
+    if not isinstance(members, list):
+        raise RuntimeError(f"get_group_member_list 返回异常：{type(members).__name__}")
     session.exec(delete(GroupMember).where(GroupMember.group_id == group.group_id))
     count = 0
     for item in members:
@@ -225,6 +228,7 @@ async def run_realtime_preview_task(job_id: int) -> None:
 
         failed_groups: list[int] = []
         errors: dict[str, str] = {}
+        failed_details: list[dict[str, Any]] = []
         for index, group in enumerate(groups, start=1):
             _update_job(
                 session,
@@ -238,13 +242,23 @@ async def run_realtime_preview_task(job_id: int) -> None:
                 count = await refresh_group_members(session, group)
                 _update_job(session, job, last_group_members=count)
             except Exception as exc:  # noqa: BLE001
+                error_text = str(exc) or exc.__class__.__name__
                 failed_groups.append(group.group_id)
-                errors[str(group.group_id)] = str(exc)
+                errors[str(group.group_id)] = error_text
+                failed_details.append(
+                    {
+                        "group_id": group.group_id,
+                        "name": group.name or str(group.group_id),
+                        "error": error_text,
+                    }
+                )
+                logger.warning(f"去重预览拉取群 {group.group_id} 成员列表失败：{error_text}")
                 _update_job(
                     session,
                     job,
                     failed_groups=failed_groups,
                     errors=errors,
+                    failed_details=failed_details,
                 )
 
         if failed_groups:
@@ -258,6 +272,7 @@ async def run_realtime_preview_task(job_id: int) -> None:
                 progress=100,
                 failed_groups=failed_groups,
                 errors=errors,
+                failed_details=failed_details,
                 error="部分群成员列表拉取失败，预览不完整，已禁止执行踢人。",
                 completed_at=_now().isoformat(),
             )
@@ -319,7 +334,16 @@ async def run_dedupe_execute_task(job_id: int) -> None:
         job = session.get(DedupeJob, job_id)
         if not job:
             return
-        if job.status != TaskStatus.preview:
+        if job.status not in {TaskStatus.preview, TaskStatus.pending}:
+            _update_job(
+                session,
+                job,
+                status=TaskStatus.failed,
+                phase="execute_failed",
+                error="只有完整预览任务才能执行踢人。",
+            )
+            return
+        if (job.summary or {}).get("phase") not in {"preview_ready", "execute_queued"}:
             _update_job(
                 session,
                 job,
