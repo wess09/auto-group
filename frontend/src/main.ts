@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import {
   create,
   NAlert,
@@ -43,6 +43,7 @@ import JoinView from './views/JoinView.vue'
 import LoginView from './views/LoginView.vue'
 import NoticesView from './views/NoticesView.vue'
 import RulesView from './views/RulesView.vue'
+import { adminBase, adminPath, isAdminPath, isLoginPath } from './adminRoute'
 import './styles/app.css'
 
 const naive = create({
@@ -79,28 +80,28 @@ const naive = create({
 })
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
-    { path: '/', redirect: '/admin' },
+    { path: '/', redirect: '/join' },
     { path: '/join', component: JoinView },
-    { path: '/login', component: LoginView },
-    { path: '/admin', component: DashboardView },
-    { path: '/admin/groups', component: GroupsView },
-    { path: '/admin/rules', component: RulesView },
-    { path: '/admin/notices', component: NoticesView },
-    { path: '/admin/files', component: FilesView },
-    { path: '/admin/essence', component: EssenceView },
-    { path: '/admin/dedupe', component: DedupeView },
-    { path: '/admin/events', component: EventsView }
+    { path: adminPath('login'), component: LoginView },
+    { path: adminBase, component: DashboardView },
+    { path: adminPath('groups'), component: GroupsView },
+    { path: adminPath('rules'), component: RulesView },
+    { path: adminPath('notices'), component: NoticesView },
+    { path: adminPath('files'), component: FilesView },
+    { path: adminPath('essence'), component: EssenceView },
+    { path: adminPath('dedupe'), component: DedupeView },
+    { path: adminPath('events'), component: EventsView }
   ]
 })
 
 router.beforeEach((to) => {
-  if (to.path.startsWith('/admin') && !localStorage.getItem('token')) {
-    return '/login'
+  if (isAdminPath(to.path) && !isLoginPath(to.path) && !localStorage.getItem('token')) {
+    return adminPath('login')
   }
-  if (to.path === '/login' && localStorage.getItem('token')) {
-    return '/admin'
+  if (isLoginPath(to.path) && localStorage.getItem('token')) {
+    return adminBase
   }
 })
 

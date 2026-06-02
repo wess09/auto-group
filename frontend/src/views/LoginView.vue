@@ -21,6 +21,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { api } from '../api/client'
+import { adminBase } from '../adminRoute'
 
 const router = useRouter()
 const message = useMessage()
@@ -32,7 +33,7 @@ async function submit() {
   try {
     const { data } = await api.post('/auth/login', form)
     localStorage.setItem('token', data.access_token)
-    router.push('/admin')
+    router.push(adminBase)
   } catch (error: any) {
     message.error(error.response?.data?.detail ?? '登录失败')
   } finally {

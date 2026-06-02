@@ -26,6 +26,7 @@
 import { h } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { NIcon, type MenuOption } from 'naive-ui'
+import { adminBase, adminPath } from '../adminRoute'
 import {
   Bell,
   ClipboardCheck,
@@ -47,14 +48,14 @@ function icon(component: unknown) {
 }
 
 const menuOptions: MenuOption[] = [
-  { label: () => h(RouterLink, { to: '/admin' }, { default: () => '仪表盘' }), key: '/admin', icon: icon(Dashboard) },
-  { label: () => h(RouterLink, { to: '/admin/groups' }, { default: () => '群配置' }), key: '/admin/groups', icon: icon(Users) },
-  { label: () => h(RouterLink, { to: '/admin/rules' }, { default: () => '入群规则' }), key: '/admin/rules', icon: icon(ClipboardCheck) },
-  { label: () => h(RouterLink, { to: '/admin/notices' }, { default: () => '公告管理' }), key: '/admin/notices', icon: icon(Bell) },
-  { label: () => h(RouterLink, { to: '/admin/files' }, { default: () => '群文件' }), key: '/admin/files', icon: icon(Files) },
-  { label: () => h(RouterLink, { to: '/admin/essence' }, { default: () => '精华管理' }), key: '/admin/essence', icon: icon(MessageCircle) },
-  { label: () => h(RouterLink, { to: '/admin/dedupe' }, { default: () => '一键去重' }), key: '/admin/dedupe', icon: icon(GitMerge) },
-  { label: () => h(RouterLink, { to: '/admin/events' }, { default: () => '事件日志' }), key: '/admin/events', icon: icon(Settings) },
+  { label: () => h(RouterLink, { to: adminBase }, { default: () => '仪表盘' }), key: adminBase, icon: icon(Dashboard) },
+  { label: () => h(RouterLink, { to: adminPath('groups') }, { default: () => '群配置' }), key: adminPath('groups'), icon: icon(Users) },
+  { label: () => h(RouterLink, { to: adminPath('rules') }, { default: () => '入群规则' }), key: adminPath('rules'), icon: icon(ClipboardCheck) },
+  { label: () => h(RouterLink, { to: adminPath('notices') }, { default: () => '公告管理' }), key: adminPath('notices'), icon: icon(Bell) },
+  { label: () => h(RouterLink, { to: adminPath('files') }, { default: () => '群文件' }), key: adminPath('files'), icon: icon(Files) },
+  { label: () => h(RouterLink, { to: adminPath('essence') }, { default: () => '精华管理' }), key: adminPath('essence'), icon: icon(MessageCircle) },
+  { label: () => h(RouterLink, { to: adminPath('dedupe') }, { default: () => '一键去重' }), key: adminPath('dedupe'), icon: icon(GitMerge) },
+  { label: () => h(RouterLink, { to: adminPath('events') }, { default: () => '事件日志' }), key: adminPath('events'), icon: icon(Settings) },
   { label: () => h(RouterLink, { to: '/join' }, { default: () => '公开入口' }), key: '/join', icon: icon(Login) },
   { label: '退出登录', key: 'logout', icon: icon(Logout) }
 ]
@@ -62,7 +63,7 @@ const menuOptions: MenuOption[] = [
 function go(key: string) {
   if (key === 'logout') {
     localStorage.removeItem('token')
-    router.push('/login')
+    router.push(adminPath('login'))
     return
   }
   router.push(key)

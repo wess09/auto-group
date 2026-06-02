@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+function apiBaseUrl() {
+  const value = import.meta.env.VITE_API_BASE_URL || '/api'
+  return value.replace(/\/+$/, '')
+}
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseUrl(),
   timeout: 30000
 })
 
