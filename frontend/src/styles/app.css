@@ -5,6 +5,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
   background: #fff;
   color: #17201d;
   font-family:
@@ -61,6 +62,14 @@ a {
   margin: 0 auto;
 }
 
+.content-band .n-data-table {
+  overflow-x: auto;
+}
+
+.content-band .n-data-table-wrapper {
+  min-width: 0;
+}
+
 .page-head {
   display: flex;
   align-items: center;
@@ -85,6 +94,10 @@ a {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.toolbar .n-button {
+  flex-shrink: 0;
 }
 
 .metric-grid {
@@ -117,6 +130,7 @@ a {
   border: 1px solid #d9e2dc;
   border-radius: 8px;
   padding: 18px;
+  min-width: 0;
 }
 
 .dashboard-grid {
@@ -131,6 +145,7 @@ a {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+  min-width: 0;
 }
 
 .section-head h3 {
@@ -140,6 +155,10 @@ a {
 .section-head span {
   color: #60716b;
   font-size: 13px;
+}
+
+.section-head > div {
+  min-width: 0;
 }
 
 .compact-metrics {
@@ -320,6 +339,15 @@ a {
   gap: 12px 16px;
 }
 
+.whitelist-input-group {
+  display: flex;
+}
+
+.whitelist-input-group .n-input-number {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
 .login-page,
 .join-page {
   min-height: 100vh;
@@ -358,24 +386,179 @@ a {
 }
 
 @media (max-width: 760px) {
+  .admin-shell {
+    display: block;
+  }
+
+  .admin-sider {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #dde4de;
+  }
+
+  .admin-sider .n-layout-sider-scroll-container {
+    display: block;
+    overflow: visible;
+  }
+
+  .admin-sider .n-layout-toggle-button,
+  .admin-sider .n-layout-sider__border {
+    display: none;
+  }
+
+  .brand {
+    height: 52px;
+    padding: 0 14px;
+  }
+
+  .admin-sider .n-menu {
+    padding: 0 8px 10px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .admin-sider .n-menu .n-menu-item {
+    display: inline-flex;
+    width: auto;
+    margin-right: 4px;
+    vertical-align: top;
+  }
+
+  .admin-sider .n-menu .n-menu-item-content {
+    padding: 0 12px !important;
+    border-radius: 8px;
+  }
+
   .admin-main {
-    padding: 16px;
+    padding: 14px;
+    max-width: 100%;
   }
 
   .page-head {
     align-items: flex-start;
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
+
+  .toolbar {
+    width: 100%;
+  }
+
+  .toolbar .n-button {
+    flex: 1 1 auto;
   }
 
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .metric {
+    padding: 12px;
+  }
+
+  .metric-value {
+    font-size: 23px;
+  }
+
+  .content-band {
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .compact-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .compact-metric strong {
+    font-size: 21px;
+  }
+
+  .trend-bars {
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .trend-day {
+    min-width: 42px;
   }
 
   .group-rank-row {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .whitelist-input-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .whitelist-input-group .n-input-number,
+  .whitelist-input-group .n-input,
+  .whitelist-input-group .n-button {
+    width: 100%;
+    flex: none;
+  }
+
+  .login-page,
+  .join-page {
+    padding: 16px;
+  }
+
+  .login-panel,
+  .join-panel {
+    padding: 20px;
+  }
+
+  .join-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-main {
+    padding: 10px;
+  }
+
+  .metric-grid,
+  .compact-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar .n-button {
+    width: 100%;
+  }
+
+  .content-band {
+    padding: 12px;
   }
 }

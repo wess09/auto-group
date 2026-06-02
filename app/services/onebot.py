@@ -3,6 +3,8 @@ from typing import Any, Protocol
 
 from nonebot import get_bots
 
+from app.core.config import get_settings
+
 
 class BotLike(Protocol):
     async def call_api(self, api: str, **data: Any) -> Any: ...
@@ -33,11 +35,21 @@ async def set_group_add_request(flag: str, sub_type: str, approve: bool, reason:
 
 
 async def get_group_info(group_id: int) -> dict[str, Any]:
-    return await call_onebot("get_group_info", group_id=group_id)
+    settings = get_settings()
+    return await call_onebot(
+        "get_group_info",
+        group_id=group_id,
+        _timeout=settings.onebot_api_timeout_seconds,
+    )
 
 
 async def get_group_member_list(group_id: int) -> list[dict[str, Any]]:
-    return await call_onebot("get_group_member_list", group_id=group_id)
+    settings = get_settings()
+    return await call_onebot(
+        "get_group_member_list",
+        group_id=group_id,
+        _timeout=settings.group_member_sync_timeout_seconds,
+    )
 
 
 async def set_group_kick(group_id: int, user_id: int, reject_add_request: bool = False) -> Any:

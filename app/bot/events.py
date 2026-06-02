@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 from typing import Any
 
+import asyncio
+
 from nonebot import on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupDecreaseNoticeEvent,
+    GroupIncreaseNoticeEvent,
     GroupMessageEvent,
     GroupRequestEvent,
 )
@@ -12,6 +15,7 @@ from sqlmodel import Session, select
 
 from app.core.database import engine
 from app.models import JoinRequest, LeaveEvent, ManagedGroup, MemberActivityStat
+from app.services.group_sync import sync_one_group_info
 from app.services.groups import get_recommended_group, render_redirect_message
 from app.services.rules import find_matching_rule
 
@@ -39,6 +43,13 @@ def extract_answer(comment: str) -> str:
 request_matcher = on_request(priority=5, block=False)
 notice_matcher = on_notice(priority=5, block=False)
 message_matcher = on_message(priority=99, block=False)
+
+
+async def sync_group_info_safely(group_id: int) -> None:
+    try:
+        await sync_one_group_info(group_id)
+    except Exception:
+        pass
 
 
 @request_matcher.handle()
@@ -143,23 +154,25 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
 
 
 @notice_matcher.handle()
-async def handle_group_decrease(event: GroupDecreaseNoticeEvent) -> None:
-    if event.notice_type != "group_decrease":
+async def handle_group_member_change(event: GroupIncreaseNoticeEvent | GroupDecreaseNoticeEvent) -> None:
+    if event.notice_type not in {"group_increase", "group_decrease"}:
         return
+    should_sync = False
     with Session(engine) as session:
         group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
         if not group:
             return
-        session.add(
-            LeaveEvent(
-                group_id=event.group_id,
-                user_id=event.user_id,
-                operator_id=getattr(event, "operator_id", None),
-                sub_type=event.sub_type,
-                raw_event=event_to_dict(event),
+        should_sync = True
+        if event.notice_type == "group_decrease":
+            session.add(
+                LeaveEvent(
+                    group_id=event.group_id,
+                    user_id=event.user_id,
+                    operator_id=getattr(event, "operator_id", None),
+                    sub_type=event.sub_type,
+                    raw_event=event_to_dict(event),
+                )
             )
-        )
-        if group.current_members > 0:
-            group.current_members -= 1
-            session.add(group)
         session.commit()
+    if should_sync:
+        asyncio.create_task(sync_group_info_safely(event.group_id))

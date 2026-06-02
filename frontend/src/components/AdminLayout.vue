@@ -6,7 +6,7 @@
       collapse-mode="width"
       :collapsed-width="0"
       :width="224"
-      show-trigger="bar"
+      :show-trigger="!isMobile ? 'bar' : false"
     >
       <div class="brand">
         <div class="brand-mark">A</div>
@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { h } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { NIcon, type MenuOption } from 'naive-ui'
 import { adminBase, adminPath } from '../adminRoute'
@@ -42,6 +42,12 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const width = ref(typeof window === 'undefined' ? 1024 : window.innerWidth)
+const isMobile = computed(() => width.value <= 760)
+
+function updateWidth() {
+  width.value = window.innerWidth
+}
 
 function icon(component: unknown) {
   return () => h(NIcon, null, { default: () => h(component as never) })
@@ -68,4 +74,7 @@ function go(key: string) {
   }
   router.push(key)
 }
+
+onMounted(() => window.addEventListener('resize', updateWidth))
+onBeforeUnmount(() => window.removeEventListener('resize', updateWidth))
 </script>

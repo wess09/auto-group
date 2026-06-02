@@ -96,6 +96,17 @@ class DedupeExecuteIn(BaseModel):
     job_id: int
 
 
+class DedupeWhitelistIn(BaseModel):
+    user_id: int
+    note: str = ""
+    enabled: bool = True
+
+
+class DedupeWhitelistPatch(BaseModel):
+    note: str | None = None
+    enabled: bool | None = None
+
+
 class PublicGroupOut(BaseModel):
     available: bool
     group_id: int | None = None
@@ -146,10 +157,14 @@ class DedupePreviewAction(BaseModel):
     nickname: str = ""
     keep_group_id: int
     kick_group_id: int
+    status: str = "preview"
+    error: str = ""
 
 
 class DedupePreviewOut(BaseModel):
     job_id: int
+    status: str = "preview"
+    summary: dict[str, Any] = Field(default_factory=dict)
     duplicate_users: int
     actions: list[DedupePreviewAction]
 

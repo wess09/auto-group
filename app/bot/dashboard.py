@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -8,11 +9,24 @@ from nonebot import get_driver
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.database import init_db
+from app.services.group_sync import group_info_sync_loop, member_snapshot_daily_loop
+
+
+driver = get_driver()
+
+
+@driver.on_startup
+async def start_background_sync_tasks() -> None:
+    app = getattr(driver, "server_app", None)
+    if app is None or getattr(app.state, "auto_group_sync_tasks_started", False):
+        return
+    app.state.auto_group_sync_tasks_started = True
+    app.state.auto_group_info_sync_task = asyncio.create_task(group_info_sync_loop())
+    app.state.auto_group_member_snapshot_task = asyncio.create_task(member_snapshot_daily_loop())
 
 
 def mount_dashboard() -> None:
     settings = get_settings()
-    driver = get_driver()
     app = getattr(driver, "server_app", None)
     if app is None:
         return

@@ -142,6 +142,17 @@ class DedupeAction(SQLModel, table=True):
     executed_at: datetime | None = None
 
 
+class DedupeWhitelist(SQLModel, table=True):
+    __tablename__ = "dedupe_whitelist"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, unique=True)
+    note: str = ""
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
 class Announcement(SQLModel, table=True):
     __tablename__ = "announcements"
 

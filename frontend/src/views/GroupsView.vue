@@ -116,7 +116,7 @@ const columns: DataTableColumns<ManagedGroup> = [
     render: (row) =>
       h(NSpace, [
         h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-        h(NButton, { size: 'small', onClick: () => sync(row.group_id) }, { default: () => '同步' }),
+        h(NButton, { size: 'small', onClick: () => sync(row.group_id) }, { default: () => '刷新人数' }),
         h(NPopconfirm, { onPositiveClick: () => remove(row.group_id) }, {
           trigger: () => h(NButton, { size: 'small', type: 'error' }, { default: () => '删除' }),
           default: () => '确认删除这个群配置？'

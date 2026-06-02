@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     public_fallback_message: str = "当前没有可加入的群，请稍后再试。"
     upload_dir: str = "./uploads"
+    group_sync_interval_seconds: int = 60
+    group_sync_concurrency: int = 3
+    onebot_api_timeout_seconds: float = 15.0
+    group_member_sync_timeout_seconds: float = 300.0
+    member_snapshot_daily_time: str = "03:00"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

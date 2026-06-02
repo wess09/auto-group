@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -10,8 +11,8 @@ from app.models import (
     Announcement,
     AnswerRule,
     AuditLog,
-    DedupeAction,
     DedupeJob,
+    DedupeWhitelist,
     EssenceMessage,
     FileDistributionJob,
     GroupFile,
@@ -28,6 +29,8 @@ from app.schemas.admin import (
     DedupeExecuteIn,
     DedupePreviewAction,
     DedupePreviewOut,
+    DedupeWhitelistIn,
+    DedupeWhitelistPatch,
     EssenceCreateIn,
     EssenceDeleteIn,
     FileDistributeIn,
@@ -41,13 +44,18 @@ from app.schemas.admin import (
 )
 from app.services import onebot
 from app.services.audit import add_audit
-from app.services.dedupe import create_dedupe_preview, execute_dedupe_job
+from app.services.dedupe import (
+    create_realtime_dedupe_preview_job,
+    get_dedupe_job_out,
+    queue_dedupe_execute,
+    run_dedupe_execute_task,
+    run_realtime_preview_task,
+)
 from app.services.groups import touch_group
 from app.services.sync import (
     sync_essence_messages,
     sync_group_files,
     sync_group_info,
-    sync_group_members,
     sync_group_notices,
 )
 
@@ -281,10 +289,18 @@ async def sync_group(group_id: int, session: SessionDep, admin: AdminDep) -> Gen
     group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
     if not group:
         raise HTTPException(status_code=404, detail="群不存在")
-    await sync_group_info(session, group)
-    members = await sync_group_members(session, group_id)
-    add_audit(session, "group.sync", str(group_id), {"members": members}, admin)
-    return GenericResult(ok=True, message=f"已同步 {members} 个成员")
+    try:
+        await sync_group_info(session, group)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"刷新群基础信息失败：{exc}") from exc
+    add_audit(
+        session,
+        "group.sync_info",
+        str(group_id),
+        {"current_members": group.current_members, "max_members": group.max_members},
+        admin,
+    )
+    return GenericResult(ok=True, message="已刷新群基础信息", data=group.model_dump(mode="json"))
 
 
 @router.get("/rules")
@@ -350,22 +366,107 @@ def leave_events(session: SessionDep, admin: AdminDep) -> list[LeaveEvent]:
     ).all()
 
 
+@router.get("/dedupe/whitelist")
+def dedupe_whitelist(session: SessionDep, admin: AdminDep) -> list[DedupeWhitelist]:
+    del admin
+    return session.exec(select(DedupeWhitelist).order_by(DedupeWhitelist.created_at.desc())).all()
+
+
+@router.post("/dedupe/whitelist")
+def create_dedupe_whitelist(
+    payload: DedupeWhitelistIn,
+    session: SessionDep,
+    admin: AdminDep,
+) -> DedupeWhitelist:
+    exists = session.exec(
+        select(DedupeWhitelist).where(DedupeWhitelist.user_id == payload.user_id)
+    ).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="该 QQ 已在白名单中")
+    item = DedupeWhitelist(**payload.model_dump())
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    add_audit(session, "dedupe.whitelist.create", str(item.user_id), payload.model_dump(), admin)
+    return item
+
+
+@router.patch("/dedupe/whitelist/{item_id}")
+def update_dedupe_whitelist(
+    item_id: int,
+    payload: DedupeWhitelistPatch,
+    session: SessionDep,
+    admin: AdminDep,
+) -> DedupeWhitelist:
+    item = session.get(DedupeWhitelist, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="白名单不存在")
+    _patch_model(item, payload)
+    item.updated_at = datetime.now(timezone.utc)
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    add_audit(
+        session,
+        "dedupe.whitelist.update",
+        str(item.user_id),
+        payload.model_dump(exclude_unset=True),
+        admin,
+    )
+    return item
+
+
+@router.delete("/dedupe/whitelist/{item_id}", response_model=GenericResult)
+def delete_dedupe_whitelist(
+    item_id: int,
+    session: SessionDep,
+    admin: AdminDep,
+) -> GenericResult:
+    item = session.get(DedupeWhitelist, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="白名单不存在")
+    user_id = item.user_id
+    session.delete(item)
+    session.commit()
+    add_audit(session, "dedupe.whitelist.delete", str(user_id), {}, admin)
+    return GenericResult(ok=True, message="已删除")
+
+
 @router.post("/dedupe/preview", response_model=DedupePreviewOut)
-def dedupe_preview(session: SessionDep, admin: AdminDep) -> DedupePreviewOut:
-    job = create_dedupe_preview(session)
-    actions = session.exec(select(DedupeAction).where(DedupeAction.job_id == job.id)).all()
-    add_audit(session, "dedupe.preview", str(job.id), job.summary, admin)
+async def dedupe_preview(session: SessionDep, admin: AdminDep) -> DedupePreviewOut:
+    job = create_realtime_dedupe_preview_job(session)
+    asyncio.create_task(run_realtime_preview_task(job.id))
+    add_audit(session, "dedupe.preview.start", str(job.id), job.summary, admin)
     return DedupePreviewOut(
         job_id=job.id,
-        duplicate_users=int(job.summary.get("duplicate_users", 0)),
+        status=job.status,
+        summary=job.summary,
+        duplicate_users=0,
+        actions=[],
+    )
+
+
+@router.get("/dedupe/jobs/{job_id}", response_model=DedupePreviewOut)
+def dedupe_job(job_id: int, session: SessionDep, admin: AdminDep) -> DedupePreviewOut:
+    del admin
+    data = get_dedupe_job_out(session, job_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="去重任务不存在")
+    return DedupePreviewOut(
+        job_id=data["job_id"],
+        status=str(data["status"]),
+        summary=data["summary"],
+        duplicate_users=data["duplicate_users"],
         actions=[
             DedupePreviewAction(
-                user_id=action.user_id,
-                nickname=action.nickname,
-                keep_group_id=action.keep_group_id,
-                kick_group_id=action.kick_group_id,
+                user_id=action["user_id"],
+                nickname=action["nickname"],
+                keep_group_id=action["keep_group_id"],
+                kick_group_id=action["kick_group_id"],
+                status=action["status"],
+                error=action["error"],
             )
-            for action in actions
+            for action in data["actions"]
         ],
     )
 
@@ -376,8 +477,12 @@ async def dedupe_execute(
     session: SessionDep,
     admin: AdminDep,
 ) -> DedupeJob:
-    job = await execute_dedupe_job(session, payload.job_id)
-    add_audit(session, "dedupe.execute", str(job.id), job.summary, admin)
+    try:
+        job = queue_dedupe_execute(session, payload.job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    asyncio.create_task(run_dedupe_execute_task(job.id))
+    add_audit(session, "dedupe.execute.start", str(job.id), job.summary, admin)
     return job
 
 
