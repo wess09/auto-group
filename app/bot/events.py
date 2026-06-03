@@ -10,7 +10,7 @@ from nonebot.adapters.onebot.v11 import (
     GroupRequestEvent,
     NoticeEvent,
 )
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.core.database import engine
@@ -69,7 +69,7 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
     with Session(engine) as session:
         blacklist_item = get_enabled_blacklist_item(session, event.user_id)
         source_group = session.exec(
-            select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)
+            select(ManagedGroup).where(col(ManagedGroup.group_id) == event.group_id)
         ).first()
         recommended = get_recommended_group(session, require_join_url=False)
         redirect_group = get_unfilled_prioritized_group(session, source_group)
@@ -150,7 +150,9 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
     nickname = getattr(sender, "nickname", "") if sender else ""
     card = getattr(sender, "card", "") if sender else ""
     with Session(engine) as session:
-        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
+        group = session.exec(
+            select(ManagedGroup).where(col(ManagedGroup.group_id) == event.group_id)
+        ).first()
         if not group:
             return
         stat = session.exec(
@@ -193,7 +195,7 @@ async def handle_group_member_change(event: NoticeEvent) -> None:
         return
     should_sync = False
     with Session(engine) as session:
-        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+        group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
         if not group:
             return
         should_sync = True

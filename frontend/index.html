@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Auto Group</title>
+    <script>
+      (function () {
+        var region = __ALIYUN_CAPTCHA_REGION__;
+        var prefix = __ALIYUN_CAPTCHA_PREFIX__;
+        if (!region) region = "cn";
+        if (!prefix) return;
+        window.AliyunCaptchaConfig = {
+          region: region,
+          prefix: prefix,
+        };
+      })();
+    </script>
+    <script>
+      (function () {
+        if (!window.AliyunCaptchaConfig) return;
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = "https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js";
+        script.dataset.aliyunCaptchaScript = "true";
+        script.onload = function () {
+          script.dataset.loaded = "true";
+        };
+        document.head.appendChild(script);
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

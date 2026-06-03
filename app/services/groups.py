@@ -23,7 +23,7 @@ def is_group_available(group: ManagedGroup) -> bool:
 def get_recommended_group(session: Session, require_join_url: bool = True) -> ManagedGroup | None:
     groups = session.exec(
         select(ManagedGroup)
-        .where(ManagedGroup.enabled == True)  # noqa: E712
+        .where(col(ManagedGroup.enabled) == True)  # noqa: E712
         .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.current_members).asc())
     ).all()
     for group in groups:
@@ -43,8 +43,8 @@ def get_unfilled_prioritized_group(
     groups = session.exec(
         select(ManagedGroup)
         .where(
-            ManagedGroup.enabled == True,  # noqa: E712
-            ManagedGroup.priority > source_group.priority,
+            col(ManagedGroup.enabled) == True,  # noqa: E712
+            col(ManagedGroup.priority) > source_group.priority,
         )
         .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.current_members).asc())
     ).all()

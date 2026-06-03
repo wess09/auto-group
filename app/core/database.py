@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Iterator
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, col, create_engine, select
 
 from app.core.config import get_settings
 from app.core.security import hash_password
@@ -25,7 +25,7 @@ def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         admin = session.exec(
-            select(Admin).where(Admin.username == settings.admin_username)
+            select(Admin).where(col(Admin.username) == settings.admin_username)
         ).first()
         if not admin:
             session.add(

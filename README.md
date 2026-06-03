@@ -44,11 +44,9 @@ LLBot/LLOneBot 反向 WS 地址配置为：
 ws://127.0.0.1:8080/onebot/v11/ws
 ```
 
-默认后台账号密码来自 `.env`：
+如果日志出现 `keepalive ping timeout`，可以在 `.env` 调大 `WS_PING_TIMEOUT_SECONDS`，或将 `WS_PING_INTERVAL_SECONDS=0` 关闭服务端 WebSocket ping。
 
-```text
-admin / admin123
-```
+后台账号密码来自 `.env`，首次部署前请修改 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`。
 
 ## 自定义后台入口
 
@@ -110,7 +108,18 @@ npm run build
 ```text
 VITE_API_BASE_URL=https://bot.example.com/api
 VITE_ADMIN_ROUTE_PREFIX=/manage-a8f3c2
+VITE_ALIYUN_CAPTCHA_REGION=cn
+VITE_ALIYUN_CAPTCHA_PREFIX=esa-xxxxxx
+VITE_ALIYUN_CAPTCHA_SCENE_ID=your-scene-id
 ```
+
+启用阿里云 ESA 验证码后，ESA 里的“需验证的接口”填后台登录接口：
+
+```text
+POST https://bot.example.com/api/auth/login
+```
+
+前端会动态加载阿里云验证码 JS，验证码通过后把 `captchaVerifyParam` 放到 `captcha-verify-param` 请求头发给登录接口。
 
 后端 `.env` 示例：
 
@@ -118,6 +127,11 @@ VITE_ADMIN_ROUTE_PREFIX=/manage-a8f3c2
 FRONTEND_STATIC_ENABLED=false
 CORS_ORIGINS=https://cdn.example.com
 ADMIN_ROUTE_PREFIX=/manage-a8f3c2
+LOGIN_RATE_LIMIT_MAX_FAILURES=5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS=900
+LOGIN_RATE_LIMIT_LOCK_SECONDS=900
 ```
+
+后端登录接口默认启用失败限速：同一账号或同一客户端 IP 在窗口期内失败次数达到阈值后，会返回 `429` 并暂时拒绝继续尝试。公网部署时还应在防火墙或反代层限制源站只接受 ESA/CDN 回源，避免攻击者绕过边缘验证码直接打源站。
 
 如果你临时想让后端直接托管 `frontend/dist`，设置 `FRONTEND_STATIC_ENABLED=true` 后重新启动后端即可。

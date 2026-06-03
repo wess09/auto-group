@@ -185,7 +185,7 @@ def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
     return DashboardOut(
         groups=session.exec(select(func.count(col(ManagedGroup.id)))).one(),
         enabled_groups=session.exec(
-            select(func.count(col(ManagedGroup.id))).where(ManagedGroup.enabled == True)  # noqa: E712
+            select(func.count(col(ManagedGroup.id))).where(col(ManagedGroup.enabled) == True)  # noqa: E712
         ).one(),
         join_requests=session.exec(select(func.count(col(JoinRequest.id)))).one(),
         leave_events=session.exec(
@@ -270,7 +270,9 @@ def list_groups(session: SessionDep, admin: AdminDep) -> list[ManagedGroup]:
 
 @router.post("/groups")
 def create_group(payload: ManagedGroupIn, session: SessionDep, admin: AdminDep) -> ManagedGroup:
-    exists = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == payload.group_id)).first()
+    exists = session.exec(
+        select(ManagedGroup).where(col(ManagedGroup.group_id) == payload.group_id)
+    ).first()
     if exists:
         raise HTTPException(status_code=409, detail="群已存在")
     group = ManagedGroup(**payload.model_dump())
@@ -288,7 +290,7 @@ def update_group(
     session: SessionDep,
     admin: AdminDep,
 ) -> ManagedGroup:
-    group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+    group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
     if not group:
         raise HTTPException(status_code=404, detail="群不存在")
     _patch_model(group, payload)
@@ -302,7 +304,7 @@ def update_group(
 
 @router.delete("/groups/{group_id}", response_model=GenericResult)
 def delete_group(group_id: int, session: SessionDep, admin: AdminDep) -> GenericResult:
-    group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+    group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
     if not group:
         raise HTTPException(status_code=404, detail="群不存在")
     session.delete(group)
@@ -313,7 +315,7 @@ def delete_group(group_id: int, session: SessionDep, admin: AdminDep) -> Generic
 
 @router.post("/groups/{group_id}/sync", response_model=GenericResult)
 async def sync_group(group_id: int, session: SessionDep, admin: AdminDep) -> GenericResult:
-    group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+    group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
     if not group:
         raise HTTPException(status_code=404, detail="群不存在")
     try:
@@ -391,7 +393,7 @@ def create_join_blacklist_item(
     admin: AdminDep,
 ) -> JoinBlacklist:
     exists = session.exec(
-        select(JoinBlacklist).where(JoinBlacklist.user_id == payload.user_id)
+        select(JoinBlacklist).where(col(JoinBlacklist.user_id) == payload.user_id)
     ).first()
     if exists:
         raise HTTPException(status_code=409, detail="该 QQ 已在黑名单中")
@@ -554,7 +556,7 @@ def create_dedupe_whitelist(
     admin: AdminDep,
 ) -> DedupeWhitelist:
     exists = session.exec(
-        select(DedupeWhitelist).where(DedupeWhitelist.user_id == payload.user_id)
+        select(DedupeWhitelist).where(col(DedupeWhitelist.user_id) == payload.user_id)
     ).first()
     if exists:
         raise HTTPException(status_code=409, detail="该 QQ 已在白名单中")
@@ -713,7 +715,7 @@ async def notices_delete(payload: NoticeDeleteIn, session: SessionDep, admin: Ad
 
 
 @router.post("/uploads", response_model=UploadOut)
-async def upload_file(file: UploadFile = File(...), admin: AdminDep = None) -> UploadOut:
+async def upload_file(admin: AdminDep, file: UploadFile = File(...)) -> UploadOut:
     del admin
     settings = get_settings()
     settings.upload_path.mkdir(parents=True, exist_ok=True)

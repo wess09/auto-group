@@ -35,7 +35,7 @@ def rule_matches(rule: AnswerRule, answer: str) -> bool:
 def find_matching_rule(session: Session, group_id: int, answer: str) -> AnswerRule | None:
     rules = session.exec(
         select(AnswerRule)
-        .where(AnswerRule.enabled == True)  # noqa: E712
+        .where(col(AnswerRule.enabled) == True)  # noqa: E712
         .order_by(col(AnswerRule.group_id).desc())
     ).all()
     for rule in rules:

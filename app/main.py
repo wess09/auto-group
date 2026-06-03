@@ -37,7 +37,12 @@ app = create_app()
 
 
 def main() -> None:
-    nonebot.run()
+    settings = get_settings()
+    ws_ping_interval = (
+        None if settings.ws_ping_interval_seconds <= 0 else settings.ws_ping_interval_seconds
+    )
+    ws_ping_timeout = None if settings.ws_ping_timeout_seconds <= 0 else settings.ws_ping_timeout_seconds
+    nonebot.run(ws_ping_interval=ws_ping_interval, ws_ping_timeout=ws_ping_timeout)
 
 
 if __name__ == "__main__":

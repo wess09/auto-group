@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.core.database import engine
@@ -12,7 +12,7 @@ from app.services.sync import sync_group_info
 
 async def sync_one_group_info(group_id: int) -> bool:
     with Session(engine) as session:
-        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+        group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
         if not group:
             return False
         await sync_group_info(session, group)
@@ -23,7 +23,7 @@ async def sync_all_group_info() -> None:
     settings = get_settings()
     with Session(engine) as session:
         group_ids = session.exec(
-            select(ManagedGroup.group_id).where(ManagedGroup.enabled == True)  # noqa: E712
+            select(col(ManagedGroup.group_id)).where(col(ManagedGroup.enabled) == True)  # noqa: E712
         ).all()
 
     semaphore = asyncio.Semaphore(max(1, settings.group_sync_concurrency))
@@ -41,7 +41,7 @@ async def sync_all_group_info() -> None:
 async def sync_all_member_snapshots() -> None:
     with Session(engine) as session:
         groups = session.exec(
-            select(ManagedGroup).where(ManagedGroup.enabled == True)  # noqa: E712
+            select(ManagedGroup).where(col(ManagedGroup.enabled) == True)  # noqa: E712
         ).all()
         for group in groups:
             try:

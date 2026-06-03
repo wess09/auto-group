@@ -68,7 +68,7 @@ def _enabled_groups(session: Session) -> dict[int, ManagedGroup]:
         group.group_id: group
         for group in session.exec(
             select(ManagedGroup)
-            .where(ManagedGroup.enabled == True)  # noqa: E712
+            .where(col(ManagedGroup.enabled) == True)  # noqa: E712
             .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.group_id).asc())
         ).all()
     }
@@ -77,7 +77,7 @@ def _enabled_groups(session: Session) -> dict[int, ManagedGroup]:
 def _active_manual_whitelist(session: Session) -> set[int]:
     return set(
         session.exec(
-            select(DedupeWhitelist.user_id).where(DedupeWhitelist.enabled == True)  # noqa: E712
+            select(col(DedupeWhitelist.user_id)).where(col(DedupeWhitelist.enabled) == True)  # noqa: E712
         ).all()
     )
 

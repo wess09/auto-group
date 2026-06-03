@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7
     admin_username: str = "admin"
-    admin_password: str = "admin123"
+    admin_password: str = "change-this-password"
     admin_route_prefix: str = "/admin"
     frontend_static_enabled: bool = False
     cors_origins: str = "*"
@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     onebot_api_timeout_seconds: float = 15.0
     group_member_sync_timeout_seconds: float = 300.0
     member_snapshot_daily_time: str = "03:00"
+    ws_ping_interval_seconds: float = 20.0
+    ws_ping_timeout_seconds: float = 60.0
+    login_rate_limit_max_failures: int = 5
+    login_rate_limit_window_seconds: int = 15 * 60
+    login_rate_limit_lock_seconds: int = 15 * 60
+    login_rate_limit_trust_proxy_headers: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

@@ -37,6 +37,7 @@ def mount_dashboard() -> None:
             allow_credentials="*" not in settings.cors_origin_list,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["X-Captcha-Verify-Code"],
         )
         app.state.auto_group_cors_mounted = True
     if getattr(app.state, "auto_group_dashboard_mounted", False):

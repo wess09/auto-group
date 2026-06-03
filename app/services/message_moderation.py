@@ -34,7 +34,7 @@ def find_matching_moderation_rule(
 ) -> MessageModerationRule | None:
     rules = session.exec(
         select(MessageModerationRule)
-        .where(MessageModerationRule.enabled == True)  # noqa: E712
+        .where(col(MessageModerationRule.enabled) == True)  # noqa: E712
         .order_by(col(MessageModerationRule.group_id).desc(), col(MessageModerationRule.id).desc())
     ).all()
     for rule in rules:
