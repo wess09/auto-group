@@ -15,7 +15,12 @@ from sqlmodel import Session, select
 from app.core.database import engine
 from app.models import JoinRequest, LeaveEvent, ManagedGroup, MemberActivityStat
 from app.services.group_sync import sync_one_group_info
-from app.services.groups import get_recommended_group, render_redirect_message
+from app.services.groups import (
+    get_recommended_group,
+    get_unfilled_prioritized_group,
+    render_redirect_message,
+)
+from app.services.message_moderation import moderate_group_message
 from app.services.rules import find_matching_rule
 
 
@@ -63,12 +68,15 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
             select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)
         ).first()
         recommended = get_recommended_group(session, require_join_url=False)
+        redirect_group = get_unfilled_prioritized_group(session, source_group)
+        if not redirect_group and recommended and event.group_id != recommended.group_id:
+            redirect_group = recommended
         result = "pending"
         reason = ""
         matched_rule_id: int | None = None
 
-        if recommended and event.group_id != recommended.group_id:
-            reason = render_redirect_message(recommended, source_group)
+        if redirect_group:
+            reason = render_redirect_message(redirect_group, source_group)
             await bot.call_api(
                 "set_group_add_request",
                 flag=event.flag,
@@ -107,7 +115,11 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
                 group_id=event.group_id,
                 answer_text=answer,
                 matched_rule_id=matched_rule_id,
-                recommended_group_id=recommended.group_id if recommended else None,
+                recommended_group_id=redirect_group.group_id
+                if redirect_group
+                else recommended.group_id
+                if recommended
+                else None,
                 result=result,
                 reason=reason,
                 raw_event=raw_event,
@@ -150,6 +162,10 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
         stat.last_active_at = now
         session.add(stat)
         session.commit()
+        try:
+            await moderate_group_message(session, event)
+        except Exception:
+            pass
 
 
 @notice_matcher.handle()

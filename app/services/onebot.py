@@ -61,6 +61,19 @@ async def set_group_kick(group_id: int, user_id: int, reject_add_request: bool =
     )
 
 
+async def delete_msg(message_id: int) -> Any:
+    return await call_onebot("delete_msg", message_id=message_id)
+
+
+async def set_group_ban(group_id: int, user_id: int, duration: int) -> Any:
+    return await call_onebot(
+        "set_group_ban",
+        group_id=group_id,
+        user_id=user_id,
+        duration=duration,
+    )
+
+
 async def send_group_notice(group_id: int, content: str) -> Any:
     return await call_onebot("_send_group_notice", group_id=group_id, content=content)
 

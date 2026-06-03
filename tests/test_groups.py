@@ -1,7 +1,7 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.models import ManagedGroup
-from app.services.groups import get_recommended_group
+from app.services.groups import get_recommended_group, get_unfilled_prioritized_group
 
 
 def test_recommended_group_uses_priority_and_capacity() -> None:
@@ -17,3 +17,34 @@ def test_recommended_group_uses_priority_and_capacity() -> None:
 
     assert group is not None
     assert group.group_id == 2
+
+
+def test_unfilled_prioritized_group_blocks_later_group() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        earlier = ManagedGroup(group_id=1, priority=100, current_members=99, max_members=100)
+        later = ManagedGroup(group_id=2, priority=90, current_members=10, max_members=100)
+        session.add(earlier)
+        session.add(later)
+        session.commit()
+
+        redirect_group = get_unfilled_prioritized_group(session, later)
+
+    assert redirect_group is not None
+    assert redirect_group.group_id == 1
+
+
+def test_unfilled_prioritized_group_ignores_full_earlier_groups() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        earlier = ManagedGroup(group_id=1, priority=100, current_members=100, max_members=100)
+        later = ManagedGroup(group_id=2, priority=90, current_members=10, max_members=100)
+        session.add(earlier)
+        session.add(later)
+        session.commit()
+
+        redirect_group = get_unfilled_prioritized_group(session, later)
+
+    assert redirect_group is None

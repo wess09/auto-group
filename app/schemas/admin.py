@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.models.entities import LogicMode, MatchMode
+from app.models.entities import LogicMode, MatchMode, MessageModerationAction
 
 
 class LoginIn(BaseModel):
@@ -57,6 +57,26 @@ class AnswerRulePatch(BaseModel):
     match_mode: MatchMode | None = None
     logic_mode: LogicMode | None = None
     patterns: list[str] | None = None
+
+
+class MessageModerationRuleIn(BaseModel):
+    name: str
+    enabled: bool = True
+    group_id: int | None = None
+    patterns: list[str] = Field(default_factory=list)
+    action: MessageModerationAction = MessageModerationAction.recall
+    mute_duration_seconds: int = Field(default=600, ge=1)
+    note: str = ""
+
+
+class MessageModerationRulePatch(BaseModel):
+    name: str | None = None
+    enabled: bool | None = None
+    group_id: int | None = None
+    patterns: list[str] | None = None
+    action: MessageModerationAction | None = None
+    mute_duration_seconds: int | None = Field(default=None, ge=1)
+    note: str | None = None
 
 
 class NoticeSendIn(BaseModel):

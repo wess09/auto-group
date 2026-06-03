@@ -19,6 +19,7 @@ from app.models import (
     JoinRequest,
     LeaveEvent,
     MemberActivityStat,
+    MessageModerationRule,
     ManagedGroup,
 )
 from app.models.entities import TaskStatus
@@ -38,6 +39,8 @@ from app.schemas.admin import (
     GroupFileDeleteIn,
     ManagedGroupIn,
     ManagedGroupPatch,
+    MessageModerationRuleIn,
+    MessageModerationRulePatch,
     NoticeDeleteIn,
     NoticeSendIn,
     UploadOut,
@@ -350,6 +353,76 @@ def delete_rule(rule_id: int, session: SessionDep, admin: AdminDep) -> GenericRe
     session.delete(rule)
     session.commit()
     add_audit(session, "rule.delete", str(rule_id), {}, admin)
+    return GenericResult(ok=True, message="已删除")
+
+
+@router.get("/message-moderation-rules")
+def list_message_moderation_rules(
+    session: SessionDep, admin: AdminDep
+) -> list[MessageModerationRule]:
+    del admin
+    return session.exec(
+        select(MessageModerationRule).order_by(MessageModerationRule.id.desc())
+    ).all()
+
+
+@router.post("/message-moderation-rules")
+def create_message_moderation_rule(
+    payload: MessageModerationRuleIn,
+    session: SessionDep,
+    admin: AdminDep,
+) -> MessageModerationRule:
+    rule = MessageModerationRule(**payload.model_dump())
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    add_audit(
+        session,
+        "message_moderation_rule.create",
+        str(rule.id),
+        payload.model_dump(mode="json"),
+        admin,
+    )
+    return rule
+
+
+@router.patch("/message-moderation-rules/{rule_id}")
+def update_message_moderation_rule(
+    rule_id: int,
+    payload: MessageModerationRulePatch,
+    session: SessionDep,
+    admin: AdminDep,
+) -> MessageModerationRule:
+    rule = session.get(MessageModerationRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="消息审查规则不存在")
+    _patch_model(rule, payload)
+    rule.updated_at = datetime.now(timezone.utc)
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    add_audit(
+        session,
+        "message_moderation_rule.update",
+        str(rule_id),
+        payload.model_dump(exclude_unset=True),
+        admin,
+    )
+    return rule
+
+
+@router.delete("/message-moderation-rules/{rule_id}", response_model=GenericResult)
+def delete_message_moderation_rule(
+    rule_id: int,
+    session: SessionDep,
+    admin: AdminDep,
+) -> GenericResult:
+    rule = session.get(MessageModerationRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="消息审查规则不存在")
+    session.delete(rule)
+    session.commit()
+    add_audit(session, "message_moderation_rule.delete", str(rule_id), {}, admin)
     return GenericResult(ok=True, message="已删除")
 
 

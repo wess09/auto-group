@@ -36,6 +36,7 @@ import {
   Login,
   Logout,
   MessageCircle,
+  MessageReport,
   Settings,
   Users
 } from '@vicons/tabler'
@@ -57,6 +58,7 @@ const menuOptions: MenuOption[] = [
   { label: () => h(RouterLink, { to: adminBase }, { default: () => '仪表盘' }), key: adminBase, icon: icon(Dashboard) },
   { label: () => h(RouterLink, { to: adminPath('groups') }, { default: () => '群配置' }), key: adminPath('groups'), icon: icon(Users) },
   { label: () => h(RouterLink, { to: adminPath('rules') }, { default: () => '入群规则' }), key: adminPath('rules'), icon: icon(ClipboardCheck) },
+  { label: () => h(RouterLink, { to: adminPath('message-moderation') }, { default: () => '消息审查' }), key: adminPath('message-moderation'), icon: icon(MessageReport) },
   { label: () => h(RouterLink, { to: adminPath('notices') }, { default: () => '公告管理' }), key: adminPath('notices'), icon: icon(Bell) },
   { label: () => h(RouterLink, { to: adminPath('files') }, { default: () => '群文件' }), key: adminPath('files'), icon: icon(Files) },
   { label: () => h(RouterLink, { to: adminPath('essence') }, { default: () => '精华管理' }), key: adminPath('essence'), icon: icon(MessageCircle) },

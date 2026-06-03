@@ -6,12 +6,16 @@ from app.core.config import get_settings
 from app.models import ManagedGroup
 
 
+def has_group_capacity(group: ManagedGroup) -> bool:
+    return group.max_members <= 0 or group.current_members < group.max_members
+
+
 def is_group_available(group: ManagedGroup) -> bool:
     if not group.enabled:
         return False
     if not group.join_url:
         return False
-    if group.max_members > 0 and group.current_members >= group.max_members:
+    if not has_group_capacity(group):
         return False
     return True
 
@@ -25,9 +29,28 @@ def get_recommended_group(session: Session, require_join_url: bool = True) -> Ma
     for group in groups:
         if require_join_url and not group.join_url:
             continue
-        if group.max_members > 0 and group.current_members >= group.max_members:
+        if not has_group_capacity(group):
             continue
         return group
+    return None
+
+
+def get_unfilled_prioritized_group(
+    session: Session, source_group: ManagedGroup | None
+) -> ManagedGroup | None:
+    if not source_group:
+        return None
+    groups = session.exec(
+        select(ManagedGroup)
+        .where(
+            ManagedGroup.enabled == True,  # noqa: E712
+            ManagedGroup.priority > source_group.priority,
+        )
+        .order_by(ManagedGroup.priority.desc(), ManagedGroup.current_members.asc())
+    ).all()
+    for group in groups:
+        if has_group_capacity(group):
+            return group
     return None
 
 

@@ -13,6 +13,7 @@ from app.models.entities import (
     JoinRequest,
     LeaveEvent,
     MemberActivityStat,
+    MessageModerationRule,
     ManagedGroup,
 )
 
@@ -31,5 +32,6 @@ __all__ = [
     "JoinRequest",
     "LeaveEvent",
     "MemberActivityStat",
+    "MessageModerationRule",
     "ManagedGroup",
 ]

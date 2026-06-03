@@ -29,6 +29,12 @@ class TaskStatus(str, Enum):
     preview = "preview"
 
 
+class MessageModerationAction(str, Enum):
+    recall = "recall"
+    mute = "mute"
+    recall_and_mute = "recall_and_mute"
+
+
 class ManagedGroup(SQLModel, table=True):
     __tablename__ = "managed_groups"
 
@@ -58,6 +64,21 @@ class AnswerRule(SQLModel, table=True):
     match_mode: MatchMode = MatchMode.contains
     logic_mode: LogicMode = LogicMode.any
     patterns: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class MessageModerationRule(SQLModel, table=True):
+    __tablename__ = "message_moderation_rules"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    enabled: bool = True
+    group_id: int | None = Field(default=None, index=True)
+    patterns: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    action: MessageModerationAction = MessageModerationAction.recall
+    mute_duration_seconds: int = 600
+    note: str = ""
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
 

@@ -53,3 +53,14 @@ export type AnswerRule = {
   logic_mode: 'any' | 'all'
   patterns: string[]
 }
+
+export type MessageModerationRule = {
+  id: number
+  name: string
+  enabled: boolean
+  group_id: number | null
+  patterns: string[]
+  action: 'recall' | 'mute' | 'recall_and_mute'
+  mute_duration_seconds: number
+  note: string
+}

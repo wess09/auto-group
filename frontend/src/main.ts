@@ -43,6 +43,7 @@ import FilesView from './views/FilesView.vue'
 import GroupsView from './views/GroupsView.vue'
 import JoinView from './views/JoinView.vue'
 import LoginView from './views/LoginView.vue'
+import MessageModerationView from './views/MessageModerationView.vue'
 import NoticesView from './views/NoticesView.vue'
 import RulesView from './views/RulesView.vue'
 import { adminBase, adminPath, isAdminPath, isLoginPath } from './adminRoute'
@@ -92,6 +93,7 @@ const router = createRouter({
     { path: adminBase, component: DashboardView },
     { path: adminPath('groups'), component: GroupsView },
     { path: adminPath('rules'), component: RulesView },
+    { path: adminPath('message-moderation'), component: MessageModerationView },
     { path: adminPath('notices'), component: NoticesView },
     { path: adminPath('files'), component: FilesView },
     { path: adminPath('essence'), component: EssenceView },
