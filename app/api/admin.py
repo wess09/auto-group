@@ -713,7 +713,7 @@ async def notices_delete(payload: NoticeDeleteIn, session: SessionDep, admin: Ad
 
 
 @router.post("/uploads", response_model=UploadOut)
-async def upload_file(file: UploadFile = File(...), admin: AdminDep | None = None) -> UploadOut:
+async def upload_file(file: UploadFile = File(...), admin: AdminDep = None) -> UploadOut:
     del admin
     settings = get_settings()
     settings.upload_path.mkdir(parents=True, exist_ok=True)
