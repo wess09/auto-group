@@ -1,19 +1,13 @@
 <template>
-  <n-config-provider :theme-overrides="themeOverrides">
-    <n-message-provider>
-      <router-view />
-    </n-message-provider>
-  </n-config-provider>
+  <router-view />
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { GlobalThemeOverrides } from 'naive-ui'
+import { onMounted } from 'vue'
 import { fallbackDynamicTheme, themeFromBackgroundImage } from './theme/dynamicTheme'
 
-const themeOverrides = ref<GlobalThemeOverrides>(fallbackDynamicTheme().naive)
-
 onMounted(async () => {
-  themeOverrides.value = (await themeFromBackgroundImage()).naive
+  fallbackDynamicTheme()
+  await themeFromBackgroundImage()
 })
 </script>

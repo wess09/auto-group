@@ -6,57 +6,95 @@
         <p class="page-subtitle">配置优先级、容量、入群链接和分流提示。</p>
       </div>
       <div class="toolbar">
-        <n-button @click="load">刷新</n-button>
-        <n-button type="primary" @click="openCreate">新增群</n-button>
+        <el-button @click="load">刷新</el-button>
+        <el-button type="primary" @click="openCreate">新增群</el-button>
       </div>
     </div>
     <div class="content-band">
-      <n-data-table
+      <el-table
         ref="tableRef"
-        :columns="columns"
         :data="groups"
-        :loading="ordering"
+        v-loading="ordering"
         :row-key="rowKey"
-      />
+        border
+      >
+        <el-table-column width="48" align="center">
+          <template #default>
+            <button
+              class="drag-handle"
+              title="拖动调整优先级"
+              type="button"
+              aria-label="拖动调整优先级"
+            >
+              <el-icon><Rank /></el-icon>
+            </button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="group_id" label="群号" width="130" />
+        <el-table-column prop="name" label="群名" min-width="150" />
+        <el-table-column label="优先级" width="140">
+          <template #default="{ row, $index }">
+            <span class="priority-pill">{{ row.priority }} · 第 {{ $index + 1 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="人数" width="130">
+          <template #default="{ row }">
+            {{ row.current_members }}{{ row.max_members ? ` / ${row.max_members}` : '' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="启用" width="90">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" @change="(value: boolean) => toggle(row, value)" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="join_url" label="入群链接" min-width="220" show-overflow-tooltip />
+        <el-table-column label="操作" width="230" fixed="right">
+          <template #default="{ row }">
+            <el-space>
+              <el-button size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button size="small" @click="sync(row.group_id)">刷新人数</el-button>
+              <el-popconfirm title="确认删除这个群配置？" @confirm="remove(row.group_id)">
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </el-space>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
-    <n-modal v-model:show="showModal" preset="card" title="群配置" style="width: min(720px, 96vw)">
-      <n-form>
+    <el-dialog v-model="showModal" title="群配置" width="min(720px, 96vw)">
+      <el-form label-position="top">
         <div class="form-grid">
-          <n-form-item label="群号"><n-input-number v-model:value="form.group_id" :disabled="editing" /></n-form-item>
-          <n-form-item label="群名"><n-input v-model:value="form.name" /></n-form-item>
-          <n-form-item label="优先级"><n-input-number v-model:value="form.priority" /></n-form-item>
-          <n-form-item label="启用"><n-switch v-model:value="form.enabled" /></n-form-item>
-          <n-form-item label="最大人数"><n-input-number v-model:value="form.max_members" /></n-form-item>
-          <n-form-item label="当前人数"><n-input-number v-model:value="form.current_members" /></n-form-item>
+          <el-form-item label="群号"><el-input-number v-model="form.group_id" :disabled="editing" /></el-form-item>
+          <el-form-item label="群名"><el-input v-model="form.name" /></el-form-item>
+          <el-form-item label="优先级"><el-input-number v-model="form.priority" /></el-form-item>
+          <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
+          <el-form-item label="最大人数"><el-input-number v-model="form.max_members" /></el-form-item>
+          <el-form-item label="当前人数"><el-input-number v-model="form.current_members" /></el-form-item>
         </div>
-        <n-form-item label="入群链接"><n-input v-model:value="form.join_url" /></n-form-item>
-        <n-form-item label="分流拒绝提示">
-          <n-input v-model:value="form.redirect_message_template" type="textarea" />
-        </n-form-item>
-        <n-form-item label="备注"><n-input v-model:value="form.note" type="textarea" /></n-form-item>
-        <n-button type="primary" @click="save">保存</n-button>
-      </n-form>
-    </n-modal>
+        <el-form-item label="入群链接"><el-input v-model="form.join_url" /></el-form-item>
+        <el-form-item label="分流拒绝提示">
+          <el-input v-model="form.redirect_message_template" type="textarea" />
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="form.note" type="textarea" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showModal = false">取消</el-button>
+        <el-button type="primary" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { h, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Sortable from 'sortablejs'
-import {
-  NButton,
-  NIcon,
-  NPopconfirm,
-  NSpace,
-  NSwitch,
-  useMessage,
-  type DataTableColumns
-} from 'naive-ui'
-import { GripVertical } from '@vicons/tabler'
+import { ElMessage } from 'element-plus'
+import { Rank } from '@element-plus/icons-vue'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api, type ManagedGroup } from '../api/client'
 
-const message = useMessage()
 const groups = ref<ManagedGroup[]>([])
 const tableRef = ref<unknown>(null)
 const ordering = ref(false)
@@ -80,51 +118,6 @@ function rowKey(row: ManagedGroup) {
   return row.group_id
 }
 
-const columns: DataTableColumns<ManagedGroup> = [
-  {
-    title: '',
-    key: 'drag',
-    width: 44,
-    render: () =>
-      h(
-        'button',
-        {
-          class: 'drag-handle',
-          title: '拖动调整优先级',
-          type: 'button',
-          'aria-label': '拖动调整优先级'
-        },
-        [h(NIcon, { size: 18 }, { default: () => h(GripVertical) })]
-      )
-  },
-  { title: '群号', key: 'group_id', width: 130 },
-  { title: '群名', key: 'name' },
-  {
-    title: '优先级',
-    key: 'priority',
-    width: 120,
-    render: (row, index) =>
-      h('span', { class: 'priority-pill' }, `${row.priority} · 第 ${index + 1}`)
-  },
-  { title: '人数', key: 'members', render: (row) => `${row.current_members}${row.max_members ? ` / ${row.max_members}` : ''}` },
-  { title: '启用', key: 'enabled', width: 90, render: (row) => h(NSwitch, { value: row.enabled, 'onUpdate:value': (value: boolean) => toggle(row, value) }) },
-  { title: '入群链接', key: 'join_url', ellipsis: { tooltip: true } },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 210,
-    render: (row) =>
-      h(NSpace, [
-        h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-        h(NButton, { size: 'small', onClick: () => sync(row.group_id) }, { default: () => '刷新人数' }),
-        h(NPopconfirm, { onPositiveClick: () => remove(row.group_id) }, {
-          trigger: () => h(NButton, { size: 'small', type: 'error' }, { default: () => '删除' }),
-          default: () => '确认删除这个群配置？'
-        })
-      ])
-  }
-]
-
 async function load() {
   const { data } = await api.get('/admin/groups')
   groups.value = data
@@ -134,7 +127,7 @@ async function load() {
 
 function bindSortable() {
   const tableEl = (tableRef.value as { $el?: HTMLElement } | null)?.$el
-  const tbody = tableEl?.querySelector('.n-data-table-table tbody') as HTMLElement | null
+  const tbody = tableEl?.querySelector('.el-table__body-wrapper tbody') as HTMLElement | null
   if (!tbody) return
   sortable.value?.destroy()
   sortable.value = Sortable.create(tbody, {
@@ -164,10 +157,10 @@ async function reorderGroups(oldIndex: number, newIndex: number) {
         api.patch(`/admin/groups/${group.group_id}`, { priority: group.priority })
       )
     )
-    message.success('优先级已更新')
+    ElMessage.success('优先级已更新')
   } catch (error) {
     groups.value = before
-    message.error('优先级保存失败，已恢复原顺序')
+    ElMessage.error('优先级保存失败，已恢复原顺序')
   } finally {
     ordering.value = false
     await nextTick()
@@ -201,7 +194,7 @@ async function save() {
   } else {
     await api.post('/admin/groups', form)
   }
-  message.success('已保存')
+  ElMessage.success('已保存')
   showModal.value = false
   load()
 }
@@ -213,13 +206,13 @@ async function toggle(row: ManagedGroup, enabled: boolean) {
 
 async function sync(groupId: number) {
   const { data } = await api.post(`/admin/groups/${groupId}/sync`)
-  message.success(data.message)
+  ElMessage.success(data.message)
   load()
 }
 
 async function remove(groupId: number) {
   await api.delete(`/admin/groups/${groupId}`)
-  message.success('已删除')
+  ElMessage.success('已删除')
   load()
 }
 

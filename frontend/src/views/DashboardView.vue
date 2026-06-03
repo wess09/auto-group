@@ -5,7 +5,7 @@
         <h1 class="page-title">仪表盘</h1>
         <p class="page-subtitle">群审核、运营内容和最近后台动作的概览。</p>
       </div>
-      <n-button @click="load">刷新</n-button>
+      <el-button @click="load">刷新</el-button>
     </div>
     <div class="metric-grid">
       <div v-for="item in metrics" :key="item.label" class="metric">
@@ -81,7 +81,13 @@
           <h3>成员活跃排行</h3>
           <span>近 7 天</span>
         </div>
-        <n-data-table :columns="memberColumns" :data="dashboard?.active_members ?? []" />
+        <el-table :data="dashboard?.active_members ?? []" border>
+          <el-table-column prop="user_id" label="QQ" width="130" />
+          <el-table-column prop="nickname" label="昵称" />
+          <el-table-column prop="group_name" label="群" />
+          <el-table-column prop="message_count" label="消息数" width="100" />
+          <el-table-column prop="last_active_at" label="最后活跃" width="210" />
+        </el-table>
       </section>
     </div>
     <section class="content-band" style="margin-top: 18px">
@@ -89,18 +95,31 @@
         <h3>最近退群</h3>
         <span>仅受管群</span>
       </div>
-      <n-data-table :columns="leaveColumns" :data="dashboard?.recent_leave_events ?? []" />
+      <el-table :data="dashboard?.recent_leave_events ?? []" border>
+        <el-table-column prop="user_id" label="QQ" width="130" />
+        <el-table-column prop="group_id" label="群号" width="130" />
+        <el-table-column prop="sub_type" label="类型" width="100" />
+        <el-table-column prop="created_at" label="时间" />
+      </el-table>
     </section>
     <div class="content-band" style="margin-top: 18px">
       <h3>最近操作</h3>
-      <n-data-table :columns="logColumns" :data="dashboard?.recent_audit_logs ?? []" />
+      <el-table :data="dashboard?.recent_audit_logs ?? []" border>
+        <el-table-column prop="action" label="动作" width="160" />
+        <el-table-column prop="target" label="目标" width="180" />
+        <el-table-column prop="created_at" label="时间" width="210" />
+        <el-table-column label="详情" min-width="260">
+          <template #default="{ row }">
+            <code class="json-cell">{{ JSON.stringify(row.detail) }}</code>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
-import type { DataTableColumns } from 'naive-ui'
+import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api } from '../api/client'
 
@@ -165,32 +184,6 @@ const trendRows = computed(() => {
     }
   })
 })
-
-const logColumns: DataTableColumns = [
-  { title: '动作', key: 'action', width: 160 },
-  { title: '目标', key: 'target', width: 180 },
-  { title: '时间', key: 'created_at' },
-  {
-    title: '详情',
-    key: 'detail',
-    render: (row) => h('code', { class: 'json-cell' }, JSON.stringify(row.detail))
-  }
-]
-
-const leaveColumns: DataTableColumns = [
-  { title: 'QQ', key: 'user_id', width: 130 },
-  { title: '群号', key: 'group_id', width: 130 },
-  { title: '类型', key: 'sub_type', width: 100 },
-  { title: '时间', key: 'created_at' }
-]
-
-const memberColumns: DataTableColumns = [
-  { title: 'QQ', key: 'user_id', width: 130 },
-  { title: '昵称', key: 'nickname' },
-  { title: '群', key: 'group_name' },
-  { title: '消息数', key: 'message_count', width: 100 },
-  { title: '最后活跃', key: 'last_active_at', width: 210 }
-]
 
 function memberPercent(group: any) {
   if (!group.max_members) return 100

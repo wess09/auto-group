@@ -13,14 +13,29 @@
   --md-outline: #c0c9c3;
   --md-secondary: #4f635b;
   --md-scrim: #000000;
+  --geeker-sider: #191f2a;
+  --geeker-sider-active: #243244;
+  --geeker-bg: #f5f7fa;
+  --geeker-border: #e4e7ed;
+  --geeker-text: #1f2937;
+  --el-color-primary: var(--md-primary);
+  --el-color-primary-light-3: var(--md-primary-hover);
+  --el-color-primary-dark-2: var(--md-primary-pressed);
+  --el-border-radius-base: 8px;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: #fff;
-  color: #17201d;
+  background: var(--geeker-bg);
+  color: var(--geeker-text);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -31,56 +46,162 @@ a {
   text-decoration: none;
 }
 
-.admin-shell {
+.geeker-layout {
   min-height: 100vh;
-  background: #fff;
+  display: flex;
+  background: var(--geeker-bg);
 }
 
-.admin-sider {
-  border-right: 1px solid #dde4de;
+.geeker-sider {
+  width: 232px;
   min-height: 100vh;
-  background: #fff;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--geeker-sider);
+  transition: width 0.18s ease;
 }
 
-.admin-shell .n-layout-scroll-container,
-.admin-shell .n-layout-content {
-  min-height: 100vh;
-  background: #fff;
+.geeker-layout.is-collapsed .geeker-sider {
+  width: 68px;
 }
 
-.brand {
-  height: 64px;
+.geeker-logo {
+  height: 56px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 18px;
-  font-weight: 700;
-  color: var(--md-primary);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.brand-mark {
-  width: 30px;
-  height: 30px;
+.geeker-logo-mark {
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   display: grid;
   place-items: center;
+  flex: 0 0 32px;
   background: var(--md-primary);
-  color: #f5f2df;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.geeker-menu-scroll {
+  flex: 1;
+}
+
+.geeker-menu {
+  border-right: 0;
+  background: transparent;
+}
+
+.geeker-menu.el-menu,
+.geeker-menu .el-menu-item {
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: #b9c2d0;
+  --el-menu-hover-bg-color: var(--geeker-sider-active);
+  --el-menu-hover-text-color: #ffffff;
+  --el-menu-active-color: #ffffff;
+}
+
+.geeker-menu .el-menu-item {
+  margin: 4px 10px;
+  border-radius: 8px;
+}
+
+.geeker-menu .el-menu-item.is-active {
+  background: var(--geeker-sider-active);
+}
+
+.geeker-container {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.geeker-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 18px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--geeker-border);
+}
+
+.geeker-header-left,
+.geeker-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.geeker-tabs {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid var(--geeker-border);
+}
+
+.geeker-tabs .el-scrollbar {
+  width: 100%;
+}
+
+.geeker-tabs-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.geeker-tab {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--geeker-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #606266;
+  font-size: 13px;
+}
+
+.geeker-tab.active {
+  color: var(--md-primary);
+  border-color: color-mix(in srgb, var(--md-primary) 36%, #ffffff);
+  background: color-mix(in srgb, var(--md-primary) 8%, #ffffff);
+}
+
+.geeker-tab .el-icon {
+  font-size: 12px;
+}
+
+.geeker-main {
+  min-width: 0;
+  flex: 1;
+  padding: 18px;
 }
 
 .admin-main {
-  padding: 24px;
-  max-width: 1460px;
+  max-width: 1480px;
   width: 100%;
   margin: 0 auto;
-}
-
-.content-band .n-data-table {
-  overflow-x: auto;
-}
-
-.content-band .n-data-table-wrapper {
-  min-width: 0;
 }
 
 .page-head {
@@ -88,18 +209,19 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .page-title {
   margin: 0;
   font-size: 24px;
   line-height: 1.2;
+  font-weight: 700;
 }
 
 .page-subtitle {
   margin: 6px 0 0;
-  color: #60716b;
+  color: #6b7280;
 }
 
 .toolbar {
@@ -107,10 +229,6 @@ a {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.toolbar .n-button {
-  flex-shrink: 0;
 }
 
 .metric-grid {
@@ -121,13 +239,13 @@ a {
 
 .metric {
   padding: 16px;
-  border: 1px solid #d9e2dc;
+  border: 1px solid var(--geeker-border);
   border-radius: 8px;
-  background: #fff;
+  background: #ffffff;
 }
 
 .metric-label {
-  color: #60716b;
+  color: #6b7280;
   font-size: 13px;
 }
 
@@ -139,11 +257,15 @@ a {
 }
 
 .content-band {
-  background: #fff;
-  border: 1px solid #d9e2dc;
-  border-radius: 8px;
-  padding: 18px;
   min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--geeker-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.content-band h3 {
+  margin: 0 0 14px;
 }
 
 .dashboard-grid {
@@ -166,7 +288,7 @@ a {
 }
 
 .section-head span {
-  color: #60716b;
+  color: #6b7280;
   font-size: 13px;
 }
 
@@ -182,15 +304,15 @@ a {
 
 .compact-metric {
   padding: 12px;
+  border: 1px solid #edf0f4;
   border-radius: 8px;
-  background: #f7faf8;
-  border: 1px solid #e3ebe6;
+  background: #f8fafc;
 }
 
 .compact-metric span,
 .group-rank-row span {
   display: block;
-  color: #60716b;
+  color: #6b7280;
   font-size: 13px;
 }
 
@@ -213,7 +335,7 @@ a {
   justify-content: space-between;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #f7faf8;
+  background: #f8fafc;
 }
 
 .breakdown-row strong {
@@ -244,9 +366,9 @@ a {
   justify-content: center;
   gap: 4px;
   padding: 8px 6px;
+  border: 1px solid #edf0f4;
   border-radius: 8px;
-  background: #f7faf8;
-  border: 1px solid #e3ebe6;
+  background: #f8fafc;
 }
 
 .trend-bar {
@@ -274,7 +396,7 @@ a {
 .trend-label,
 .trend-count {
   font-size: 12px;
-  color: #60716b;
+  color: #6b7280;
 }
 
 .group-rank-row {
@@ -286,9 +408,9 @@ a {
 
 .rank-meter {
   height: 8px;
-  border-radius: 999px;
-  background: #e8eee9;
   overflow: hidden;
+  border-radius: 999px;
+  background: #e8edf3;
 }
 
 .rank-meter div {
@@ -302,6 +424,10 @@ a {
   word-break: break-word;
 }
 
+.tag-gap {
+  margin: 2px 6px 2px 0;
+}
+
 .drag-handle {
   width: 28px;
   height: 28px;
@@ -309,7 +435,7 @@ a {
   border-radius: 6px;
   display: inline-grid;
   place-items: center;
-  color: #6b7a75;
+  color: #6b7280;
   background: transparent;
   cursor: grab;
 }
@@ -354,11 +480,16 @@ a {
 
 .whitelist-input-group {
   display: flex;
+  gap: 8px;
 }
 
-.whitelist-input-group .n-input-number {
+.whitelist-input-group .el-input-number {
   width: 180px;
   flex: 0 0 180px;
+}
+
+.block-button {
+  width: 100%;
 }
 
 .login-page,
@@ -375,10 +506,10 @@ a {
 .login-panel,
 .join-panel {
   width: min(440px, 100%);
-  background: rgba(255, 255, 255, 0.94);
+  padding: 26px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 8px;
-  padding: 26px;
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 24px 80px rgba(9, 25, 21, 0.28);
 }
 
@@ -416,7 +547,7 @@ a {
 }
 
 .group-selector-actions {
-  color: #60716b;
+  color: #6b7280;
 }
 
 .group-selector-count {
@@ -424,7 +555,9 @@ a {
 }
 
 .group-selector-options {
-  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
 }
 
 .captcha-element {
@@ -441,75 +574,58 @@ a {
   pointer-events: none;
 }
 
-@media (max-width: 760px) {
-  .admin-shell {
-    display: flex;
+.el-table {
+  width: 100%;
+}
+
+.el-dialog {
+  max-width: calc(100vw - 24px);
+}
+
+@media (max-width: 900px) {
+  .geeker-layout {
     flex-direction: column;
-    width: 100%;
   }
 
-  .admin-shell > .n-layout-scroll-container {
-    display: flex;
-    flex-direction: column;
+  .geeker-sider,
+  .geeker-layout.is-collapsed .geeker-sider {
     width: 100%;
-  }
-
-  .admin-sider {
-    flex: 0 0 auto !important;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
     min-height: auto;
-    border-right: 0;
-    border-bottom: 1px solid #dde4de;
   }
 
-  .admin-shell .n-layout-content {
-    display: block;
-    width: 100% !important;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .admin-sider .n-layout-sider-scroll-container {
-    display: block;
-    overflow: visible;
-  }
-
-  .admin-sider .n-layout-toggle-button,
-  .admin-sider .n-layout-sider__border {
-    display: none;
-  }
-
-  .brand {
+  .geeker-logo {
     height: 52px;
-    padding: 0 14px;
   }
 
-  .admin-sider .n-menu {
-    padding: 0 8px 10px;
+  .geeker-menu-scroll {
+    width: 100%;
+  }
+
+  .geeker-menu.el-menu {
+    display: flex;
     overflow-x: auto;
-    white-space: nowrap;
   }
 
-  .admin-sider .n-menu .n-menu-item {
-    display: inline-flex;
-    width: auto;
-    margin-right: 4px;
-    vertical-align: top;
+  .geeker-menu .el-menu-item {
+    flex: 0 0 auto;
   }
 
-  .admin-sider .n-menu .n-menu-item-content {
-    padding: 0 12px !important;
-    border-radius: 8px;
+  .geeker-header {
+    height: auto;
+    min-height: 56px;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 14px;
   }
 
-  .admin-main {
+  .geeker-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .geeker-main {
     padding: 14px;
-    max-width: 100%;
   }
 
   .page-head {
@@ -530,7 +646,7 @@ a {
     width: 100%;
   }
 
-  .toolbar .n-button {
+  .toolbar .el-button {
     flex: 1 1 auto;
   }
 
@@ -591,12 +707,11 @@ a {
   .whitelist-input-group {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 8px;
   }
 
-  .whitelist-input-group .n-input-number,
-  .whitelist-input-group .n-input,
-  .whitelist-input-group .n-button {
+  .whitelist-input-group .el-input-number,
+  .whitelist-input-group .el-input,
+  .whitelist-input-group .el-button {
     width: 100%;
     flex: none;
   }
@@ -617,7 +732,7 @@ a {
 }
 
 @media (max-width: 480px) {
-  .admin-main {
+  .geeker-main {
     padding: 10px;
   }
 
@@ -626,7 +741,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .toolbar .n-button {
+  .toolbar .el-button {
     width: 100%;
   }
 

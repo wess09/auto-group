@@ -6,34 +6,57 @@
         <p class="page-subtitle">黑名单 QQ 的所有加群申请会被直接拒绝。</p>
       </div>
       <div class="toolbar">
-        <n-button @click="load">刷新</n-button>
-        <n-button type="primary" @click="openCreate">新增黑名单</n-button>
+        <el-button @click="load">刷新</el-button>
+        <el-button type="primary" @click="openCreate">新增黑名单</el-button>
       </div>
     </div>
     <div class="content-band">
-      <n-data-table :columns="columns" :data="items" />
+      <el-table :data="items" border>
+        <el-table-column prop="user_id" label="QQ" width="140" />
+        <el-table-column label="启用" width="90">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" @change="(value: boolean) => toggle(row, value)" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="reason" label="拒绝原因" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="note" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-space>
+              <el-button size="small" @click="openEdit(row)">编辑</el-button>
+              <el-popconfirm title="确认删除？" @confirm="remove(row.id)">
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </el-space>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
-    <n-modal v-model:show="showModal" preset="card" title="加群黑名单" style="width: min(640px, 96vw)">
-      <n-form>
+    <el-dialog v-model="showModal" title="加群黑名单" width="min(640px, 96vw)">
+      <el-form label-position="top">
         <div class="form-grid">
-          <n-form-item label="QQ"><n-input-number v-model:value="form.user_id" :disabled="editing" /></n-form-item>
-          <n-form-item label="启用"><n-switch v-model:value="form.enabled" /></n-form-item>
+          <el-form-item label="QQ"><el-input-number v-model="form.user_id" :disabled="editing" /></el-form-item>
+          <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
         </div>
-        <n-form-item label="拒绝原因"><n-input v-model:value="form.reason" type="textarea" /></n-form-item>
-        <n-form-item label="备注"><n-input v-model:value="form.note" type="textarea" /></n-form-item>
-        <n-button type="primary" @click="save">保存</n-button>
-      </n-form>
-    </n-modal>
+        <el-form-item label="拒绝原因"><el-input v-model="form.reason" type="textarea" /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="form.note" type="textarea" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showModal = false">取消</el-button>
+        <el-button type="primary" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue'
-import { NButton, NPopconfirm, NSpace, NSwitch, useMessage, type DataTableColumns } from 'naive-ui'
+import { onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api, type JoinBlacklistItem } from '../api/client'
 
-const message = useMessage()
 const items = ref<JoinBlacklistItem[]>([])
 const showModal = ref(false)
 const editing = ref(false)
@@ -45,30 +68,6 @@ const defaultForm = {
   note: ''
 }
 const form = reactive({ ...defaultForm })
-
-const columns: DataTableColumns<JoinBlacklistItem> = [
-  { title: 'QQ', key: 'user_id', width: 140 },
-  {
-    title: '启用',
-    key: 'enabled',
-    width: 90,
-    render: (row) => h(NSwitch, { value: row.enabled, 'onUpdate:value': (value: boolean) => toggle(row, value) })
-  },
-  { title: '拒绝原因', key: 'reason', ellipsis: { tooltip: true } },
-  { title: '备注', key: 'note', ellipsis: { tooltip: true } },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 150,
-    render: (row) => h(NSpace, [
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-      h(NPopconfirm, { onPositiveClick: () => remove(row.id) }, {
-        trigger: () => h(NButton, { size: 'small', type: 'error' }, { default: () => '删除' }),
-        default: () => '确认删除？'
-      })
-    ])
-  }
-]
 
 async function load() {
   const { data } = await api.get('/admin/join-blacklist')
@@ -95,7 +94,7 @@ async function save() {
   } else {
     await api.post('/admin/join-blacklist', form)
   }
-  message.success('已保存')
+  ElMessage.success('已保存')
   showModal.value = false
   load()
 }
@@ -107,7 +106,7 @@ async function toggle(row: JoinBlacklistItem, enabled: boolean) {
 
 async function remove(id: number) {
   await api.delete(`/admin/join-blacklist/${id}`)
-  message.success('已删除')
+  ElMessage.success('已删除')
   load()
 }
 

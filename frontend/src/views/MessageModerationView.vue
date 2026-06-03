@@ -6,39 +6,78 @@
         <p class="page-subtitle">按群配置正则规则，命中后自动撤回、禁言或同时处理。</p>
       </div>
       <div class="toolbar">
-        <n-button @click="load">刷新</n-button>
-        <n-button type="primary" @click="openCreate">新增规则</n-button>
+        <el-button @click="load">刷新</el-button>
+        <el-button type="primary" @click="openCreate">新增规则</el-button>
       </div>
     </div>
     <div class="content-band">
-      <n-data-table :columns="columns" :data="rules" />
+      <el-table :data="rules" border>
+        <el-table-column prop="name" label="名称" min-width="150" />
+        <el-table-column label="适用群" width="120">
+          <template #default="{ row }">{{ row.group_id ?? '全局' }}</template>
+        </el-table-column>
+        <el-table-column label="动作" width="140">
+          <template #default="{ row }">
+            <el-tag :type="row.action === 'recall' ? 'primary' : 'warning'">{{ actionLabels[row.action] }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="禁言" width="120">
+          <template #default="{ row }">{{ row.action === 'recall' ? '-' : `${row.mute_duration_seconds} 秒` }}</template>
+        </el-table-column>
+        <el-table-column label="正则" min-width="240">
+          <template #default="{ row }">
+            <el-tag v-for="pattern in row.patterns" :key="pattern" class="tag-gap">
+              {{ pattern }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="启用" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '是' : '否' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-space>
+              <el-button size="small" @click="openEdit(row)">编辑</el-button>
+              <el-popconfirm title="确认删除？" @confirm="remove(row.id)">
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </el-space>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
-    <n-modal v-model:show="showModal" preset="card" title="消息审查规则" style="width: min(720px, 96vw)">
-      <n-form>
+    <el-dialog v-model="showModal" title="消息审查规则" width="min(720px, 96vw)">
+      <el-form label-position="top">
         <div class="form-grid">
-          <n-form-item label="名称"><n-input v-model:value="form.name" /></n-form-item>
-          <n-form-item label="适用群号"><n-input-number v-model:value="form.group_id" placeholder="留空为全局" /></n-form-item>
-          <n-form-item label="动作"><n-select v-model:value="form.action" :options="actionOptions" /></n-form-item>
-          <n-form-item label="禁言秒数"><n-input-number v-model:value="form.mute_duration_seconds" :min="1" /></n-form-item>
-          <n-form-item label="启用"><n-switch v-model:value="form.enabled" /></n-form-item>
+          <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
+          <el-form-item label="适用群号"><el-input-number v-model="form.group_id" placeholder="留空为全局" /></el-form-item>
+          <el-form-item label="动作"><el-select v-model="form.action" :options="actionOptions" /></el-form-item>
+          <el-form-item label="禁言秒数"><el-input-number v-model="form.mute_duration_seconds" :min="1" /></el-form-item>
+          <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
         </div>
-        <n-form-item label="正则表达式">
-          <n-input v-model:value="patternsText" type="textarea" placeholder="每行一个正则表达式" />
-        </n-form-item>
-        <n-form-item label="备注"><n-input v-model:value="form.note" type="textarea" /></n-form-item>
-        <n-button type="primary" @click="save">保存</n-button>
-      </n-form>
-    </n-modal>
+        <el-form-item label="正则表达式">
+          <el-input v-model="patternsText" type="textarea" placeholder="每行一个正则表达式" />
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="form.note" type="textarea" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showModal = false">取消</el-button>
+        <el-button type="primary" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NPopconfirm, NSpace, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api, type MessageModerationRule } from '../api/client'
 
-const message = useMessage()
 const rules = ref<MessageModerationRule[]>([])
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
@@ -63,42 +102,11 @@ const actionOptions = [
   { label: '禁言', value: 'mute' },
   { label: '撤回并禁言', value: 'recall_and_mute' }
 ]
-const actionLabels: Record<MessageModerationRule['action'], string> = {
+const actionLabels: Record<string, string> = {
   recall: '撤回',
   mute: '禁言',
   recall_and_mute: '撤回并禁言'
 }
-const columns: DataTableColumns<MessageModerationRule> = [
-  { title: '名称', key: 'name' },
-  { title: '适用群', key: 'group_id', width: 120, render: (row) => row.group_id ?? '全局' },
-  {
-    title: '动作',
-    key: 'action',
-    width: 140,
-    render: (row) => h(NTag, { type: row.action === 'recall' ? 'info' : 'warning' }, { default: () => actionLabels[row.action] })
-  },
-  {
-    title: '禁言',
-    key: 'mute_duration_seconds',
-    width: 110,
-    render: (row) => row.action === 'recall' ? '-' : `${row.mute_duration_seconds} 秒`
-  },
-  { title: '正则', key: 'patterns', render: (row) => row.patterns.map((pattern) => h(NTag, { style: 'margin-right: 6px' }, { default: () => pattern })) },
-  { title: '启用', key: 'enabled', width: 80, render: (row) => row.enabled ? '是' : '否' },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 150,
-    render: (row) => h(NSpace, [
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-      h(NPopconfirm, { onPositiveClick: () => remove(row.id) }, {
-        trigger: () => h(NButton, { size: 'small', type: 'error' }, { default: () => '删除' }),
-        default: () => '确认删除？'
-      })
-    ])
-  }
-]
-
 async function load() {
   const { data } = await api.get('/admin/message-moderation-rules')
   rules.value = data
@@ -122,14 +130,14 @@ async function save() {
   } else {
     await api.post('/admin/message-moderation-rules', form)
   }
-  message.success('已保存')
+  ElMessage.success('已保存')
   showModal.value = false
   load()
 }
 
 async function remove(id: number) {
   await api.delete(`/admin/message-moderation-rules/${id}`)
-  message.success('已删除')
+  ElMessage.success('已删除')
   load()
 }
 

@@ -6,15 +6,15 @@
         <p class="page-subtitle">实时拉取群成员，预览确认后再踢出低优先级重复成员。</p>
       </div>
       <div class="toolbar">
-        <n-button type="primary" :loading="previewRunning" @click="preview">实时生成预览</n-button>
-        <n-button
-          type="error"
+        <el-button type="primary" :loading="previewRunning" @click="preview">实时生成预览</el-button>
+        <el-button
+          type="danger"
           :loading="executeRunning"
           :disabled="!canExecute"
           @click="execute"
         >
           确认踢出
-        </n-button>
+        </el-button>
       </div>
     </div>
 
@@ -25,13 +25,12 @@
             <h3>任务进度</h3>
             <span>{{ phaseText }}</span>
           </div>
-          <n-tag :type="statusType">{{ jobStatus }}</n-tag>
+          <el-tag :type="statusType">{{ jobStatus }}</el-tag>
         </div>
-        <n-progress
-          type="line"
+        <el-progress
           :percentage="progress"
-          :indicator-placement="'inside'"
-          processing
+          :text-inside="true"
+          :stroke-width="18"
         />
         <div class="compact-metrics" style="margin-top: 14px">
           <div class="compact-metric">
@@ -51,22 +50,25 @@
             <strong>{{ summary.whitelist_skipped ?? 0 }}</strong>
           </div>
         </div>
-        <n-alert v-if="summary.current_group_id" type="info" :bordered="false" style="margin-top: 14px">
+        <el-alert v-if="summary.current_group_id" type="info" :closable="false" style="margin-top: 14px">
           正在拉取群 {{ summary.current_group_id }} 的成员列表，单群最多等待 5 分钟。
-        </n-alert>
-        <n-alert v-if="summary.error" type="error" :bordered="false" style="margin-top: 14px">
+        </el-alert>
+        <el-alert v-if="summary.error" type="error" :closable="false" style="margin-top: 14px">
           {{ summary.error }}
-        </n-alert>
-        <n-alert v-if="failedGroups.length" type="warning" :bordered="false" style="margin-top: 14px">
+        </el-alert>
+        <el-alert v-if="failedGroups.length" type="warning" :closable="false" style="margin-top: 14px">
           拉取失败群：{{ failedGroups.join('、') }}。预览不完整，已禁止执行踢人。
-        </n-alert>
-        <n-data-table
+        </el-alert>
+        <el-table
           v-if="failedDetails.length"
           style="margin-top: 14px"
-          :columns="failedColumns"
           :data="failedDetails"
-          :pagination="false"
-        />
+          border
+        >
+          <el-table-column prop="group_id" label="群号" width="140" />
+          <el-table-column prop="name" label="群名" width="180" show-overflow-tooltip />
+          <el-table-column prop="error" label="失败原因" min-width="220" show-overflow-tooltip />
+        </el-table>
       </div>
 
       <div class="content-band">
@@ -76,21 +78,37 @@
             <span>群主和管理员会自动保护，这里添加额外 QQ。</span>
           </div>
         </div>
-        <n-input-group class="whitelist-input-group">
-          <n-input-number
-            v-model:value="whitelistForm.user_id"
+        <div class="whitelist-input-group">
+          <el-input-number
+            v-model="whitelistForm.user_id"
             placeholder="QQ"
-            :show-button="false"
+            :controls="false"
           />
-          <n-input v-model:value="whitelistForm.note" placeholder="备注" />
-          <n-button type="primary" @click="addWhitelist">添加</n-button>
-        </n-input-group>
-        <n-data-table
+          <el-input v-model="whitelistForm.note" placeholder="备注" />
+          <el-button type="primary" @click="addWhitelist">添加</el-button>
+        </div>
+        <el-table
           style="margin-top: 14px"
-          :columns="whitelistColumns"
           :data="whitelist"
-          :pagination="{ pageSize: 6 }"
-        />
+          border
+        >
+          <el-table-column prop="user_id" label="QQ" width="150" />
+          <el-table-column prop="note" label="备注" />
+          <el-table-column label="启用" width="90">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="(value: boolean) => toggleWhitelist(row, value)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="90">
+            <template #default="{ row }">
+              <el-popconfirm title="确认删除这个白名单？" @confirm="removeWhitelist(row.id)">
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
 
@@ -101,7 +119,14 @@
           <span>这些重复用户不会生成踢人动作。</span>
         </div>
       </div>
-      <n-data-table :columns="skippedColumns" :data="skippedMembers" />
+      <el-table :data="skippedMembers" border>
+        <el-table-column prop="user_id" label="QQ" width="150" />
+        <el-table-column prop="nickname" label="昵称" />
+        <el-table-column prop="reason" label="原因" width="160" />
+        <el-table-column label="所在群" min-width="220">
+          <template #default="{ row }">{{ row.groups?.join('、') ?? '' }}</template>
+        </el-table-column>
+      </el-table>
     </div>
 
     <div class="content-band">
@@ -111,24 +136,24 @@
           <span>只展示确认后会执行的动作。</span>
         </div>
       </div>
-      <n-data-table :columns="columns" :data="previewData?.actions ?? []" />
+      <el-table :data="previewData?.actions ?? []" border>
+        <el-table-column prop="user_id" label="QQ" width="150" />
+        <el-table-column prop="nickname" label="昵称" min-width="160" />
+        <el-table-column prop="keep_group_id" label="保留群" width="150" />
+        <el-table-column prop="kick_group_id" label="踢出群" width="150" />
+        <el-table-column prop="status" label="状态" width="120" />
+        <el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip />
+      </el-table>
     </div>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import {
-  NButton,
-  NPopconfirm,
-  NSwitch,
-  useMessage,
-  type DataTableColumns
-} from 'naive-ui'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import AdminLayout from '../components/AdminLayout.vue'
 import { api } from '../api/client'
 
-const message = useMessage()
 const previewData = ref<any>(null)
 const whitelist = ref<any[]>([])
 const pollingTimer = ref<number | null>(null)
@@ -158,8 +183,8 @@ const progress = computed(() => {
 const statusType = computed(() => {
   if (jobStatus.value === 'failed') return 'error'
   if (jobStatus.value === 'success' || jobStatus.value === 'preview') return 'success'
-  if (jobStatus.value === 'running' || jobStatus.value === 'pending') return 'info'
-  return 'default'
+  if (jobStatus.value === 'running' || jobStatus.value === 'pending') return 'primary'
+  return 'info'
 })
 const phaseText = computed(() => {
   const phase = summary.value.phase
@@ -173,54 +198,6 @@ const phaseText = computed(() => {
   if (phase === 'execute_done') return '踢人执行完成。'
   return '尚未启动任务。'
 })
-
-const columns: DataTableColumns = [
-  { title: 'QQ', key: 'user_id', width: 150 },
-  { title: '昵称', key: 'nickname' },
-  { title: '保留群', key: 'keep_group_id', width: 150 },
-  { title: '踢出群', key: 'kick_group_id', width: 150 },
-  { title: '状态', key: 'status', width: 120 },
-  { title: '错误', key: 'error', ellipsis: { tooltip: true } }
-]
-
-const skippedColumns: DataTableColumns = [
-  { title: 'QQ', key: 'user_id', width: 150 },
-  { title: '昵称', key: 'nickname' },
-  { title: '原因', key: 'reason', width: 160 },
-  { title: '所在群', key: 'groups', render: (row: any) => row.groups?.join('、') ?? '' }
-]
-
-const failedColumns: DataTableColumns = [
-  { title: '群号', key: 'group_id', width: 140 },
-  { title: '群名', key: 'name', width: 180, ellipsis: { tooltip: true } },
-  { title: '失败原因', key: 'error', ellipsis: { tooltip: true } }
-]
-
-const whitelistColumns: DataTableColumns = [
-  { title: 'QQ', key: 'user_id', width: 150 },
-  { title: '备注', key: 'note' },
-  {
-    title: '启用',
-    key: 'enabled',
-    width: 90,
-    render: (row: any) =>
-      h(NSwitch, { value: row.enabled, 'onUpdate:value': (value: boolean) => toggleWhitelist(row, value) })
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 90,
-    render: (row: any) =>
-      h(
-        NPopconfirm,
-        { onPositiveClick: () => removeWhitelist(row.id) },
-        {
-          trigger: () => h(NButton, { size: 'small', type: 'error' }, { default: () => '删除' }),
-          default: () => '确认删除这个白名单？'
-        }
-      )
-  }
-]
 
 function clearPolling() {
   if (pollingTimer.value !== null) {
@@ -247,7 +224,7 @@ function startPolling(jobId: number) {
   pollingTimer.value = window.setInterval(() => {
     pollJob(jobId).catch(() => {
       clearPolling()
-      message.error('任务状态刷新失败')
+      ElMessage.error('任务状态刷新失败')
     })
   }, 1500)
 }
@@ -256,7 +233,7 @@ async function preview() {
   const { data } = await api.post('/admin/dedupe/preview')
   previewData.value = data
   startPolling(data.job_id)
-  message.success('已提交实时预览任务')
+  ElMessage.success('已提交实时预览任务')
 }
 
 async function execute() {
@@ -264,7 +241,7 @@ async function execute() {
   const { data } = await api.post('/admin/dedupe/execute', { job_id: previewData.value.job_id })
   previewData.value = { ...previewData.value, status: data.status, summary: data.summary }
   startPolling(data.id)
-  message.success('已提交踢人任务')
+  ElMessage.success('已提交踢人任务')
 }
 
 async function loadWhitelist() {
@@ -274,7 +251,7 @@ async function loadWhitelist() {
 
 async function addWhitelist() {
   if (!whitelistForm.user_id) {
-    message.warning('请填写 QQ')
+    ElMessage.warning('请填写 QQ')
     return
   }
   await api.post('/admin/dedupe/whitelist', {
@@ -283,7 +260,7 @@ async function addWhitelist() {
   })
   whitelistForm.user_id = null
   whitelistForm.note = ''
-  message.success('已添加白名单')
+  ElMessage.success('已添加白名单')
   loadWhitelist()
 }
 
@@ -294,7 +271,7 @@ async function toggleWhitelist(row: any, enabled: boolean) {
 
 async function removeWhitelist(id: number) {
   await api.delete(`/admin/dedupe/whitelist/${id}`)
-  message.success('已删除')
+  ElMessage.success('已删除')
   loadWhitelist()
 }
 

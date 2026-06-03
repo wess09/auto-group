@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { adminPath } from '../adminRoute'
 
 function apiBaseUrl() {
   const value = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -23,8 +24,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      if (!location.pathname.startsWith('/login')) {
-        location.href = '/login'
+      if (location.hash !== `#${adminPath('login')}`) {
+        location.hash = adminPath('login')
       }
     }
     return Promise.reject(error)

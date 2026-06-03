@@ -1,5 +1,3 @@
-import type { GlobalThemeOverrides } from 'naive-ui'
-
 export const authBackgroundUrl = 'https://api.yppp.net/api.php'
 
 const fallbackColors = {
@@ -15,7 +13,7 @@ const fallbackColors = {
 }
 
 export type DynamicTheme = {
-  naive: GlobalThemeOverrides
+  colors: ThemeColors
 }
 
 type ThemeColors = typeof fallbackColors
@@ -23,27 +21,7 @@ type ThemeColors = typeof fallbackColors
 export function createDynamicTheme(colors: ThemeColors): DynamicTheme {
   applyCssVars(colors)
   return {
-    naive: {
-      common: {
-        primaryColor: colors.primary,
-        primaryColorHover: colors.primaryHover,
-        primaryColorPressed: colors.primaryPressed,
-        primaryColorSuppl: colors.secondary,
-        textColorBase: colors.onSurface,
-        borderRadius: '8px'
-      },
-      Button: {
-        textColorPrimary: colors.onPrimary,
-        textColorHoverPrimary: colors.onPrimary,
-        textColorPressedPrimary: colors.onPrimary,
-        colorPrimary: colors.primary,
-        colorHoverPrimary: colors.primaryHover,
-        colorPressedPrimary: colors.primaryPressed,
-        borderPrimary: `1px solid ${colors.primary}`,
-        borderHoverPrimary: `1px solid ${colors.primaryHover}`,
-        borderPressedPrimary: `1px solid ${colors.primaryPressed}`
-      }
-    }
+    colors
   }
 }
 
@@ -82,7 +60,7 @@ function loadImage(src: string) {
     image.decoding = 'async'
     image.onload = () => resolve(image)
     image.onerror = () => reject(new Error('Background image failed to load'))
-    image.src = `${src}${src.includes('?') ? '&' : '?'}_theme=${Date.now()}`
+    image.src = src
   })
 }
 
@@ -97,4 +75,8 @@ function applyCssVars(colors: ThemeColors) {
   style.setProperty('--md-outline', colors.outline)
   style.setProperty('--md-secondary', colors.secondary)
   style.setProperty('--md-scrim', colors.scrim)
+  style.setProperty('--el-color-primary', colors.primary)
+  style.setProperty('--el-color-primary-light-3', colors.primaryHover)
+  style.setProperty('--el-color-primary-dark-2', colors.primaryPressed)
+  style.setProperty('--el-border-radius-base', '8px')
 }

@@ -1,28 +1,28 @@
 <template>
   <div class="group-selector">
     <div class="group-selector-head">
-      <n-checkbox
-        :checked="allSelected"
+      <el-checkbox
+        :model-value="allSelected"
         :indeterminate="partiallySelected"
         :disabled="!groups.length"
-        @update:checked="toggleAll"
+        @update:model-value="toggleAll"
       >
         全选目标群
-      </n-checkbox>
+      </el-checkbox>
       <div class="group-selector-actions">
         <span class="group-selector-count">已选 {{ selectedAvailableCount }} / {{ groups.length }}</span>
-        <n-button size="tiny" quaternary :disabled="!modelValue.length" @click="clear">
+        <el-button size="small" text :disabled="!modelValue.length" @click="clear">
           清空
-        </n-button>
+        </el-button>
       </div>
     </div>
-    <n-checkbox-group :value="modelValue" @update:value="updateValue">
-      <n-space class="group-selector-options">
-        <n-checkbox v-for="group in groups" :key="group.group_id" :value="group.group_id">
+    <el-checkbox-group :model-value="modelValue" @update:model-value="updateValue">
+      <div class="group-selector-options">
+        <el-checkbox v-for="group in groups" :key="group.group_id" :value="group.group_id">
           {{ group.name || group.group_id }}
-        </n-checkbox>
-      </n-space>
-    </n-checkbox-group>
+        </el-checkbox>
+      </div>
+    </el-checkbox-group>
   </div>
 </template>
 
@@ -49,7 +49,7 @@ const allSelected = computed(
 )
 const partiallySelected = computed(() => selectedAvailableCount.value > 0 && !allSelected.value)
 
-function toggleAll(checked: boolean) {
+function toggleAll(checked: string | number | boolean) {
   emit('update:modelValue', checked ? [...groupIds.value] : [])
 }
 

@@ -1,7 +1,7 @@
 <template>
   <section class="join-page">
     <div class="join-panel">
-      <n-spin :show="loading">
+      <el-skeleton :loading="loading" animated :rows="5">
         <h1 class="join-title">自动群分流</h1>
         <template v-if="group?.available">
           <p class="join-meta">{{ group.message }}</p>
@@ -13,14 +13,14 @@
             当前人数 {{ group.current_members ?? 0 }}
             <span v-if="group.max_members">/ {{ group.max_members }}</span>
           </p>
-          <n-button type="primary" size="large" block tag="a" :href="group.join_url" target="_blank">
+          <el-button class="block-button" type="primary" size="large" tag="a" :href="group.join_url" target="_blank">
             打开入群链接
-          </n-button>
+          </el-button>
         </template>
-        <n-alert v-else type="warning" :bordered="false">
+        <el-alert v-else type="warning" :closable="false">
           {{ group?.message || '当前没有可加入的群' }}
-        </n-alert>
-      </n-spin>
+        </el-alert>
+      </el-skeleton>
     </div>
   </section>
 </template>

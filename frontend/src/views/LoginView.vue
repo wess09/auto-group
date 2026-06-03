@@ -3,13 +3,13 @@
     <div class="login-panel">
       <h1 class="join-title">Auto Group</h1>
       <p class="join-meta">登录群管理后台</p>
-      <n-form @submit.prevent="submit">
-        <n-form-item label="账号">
-          <n-input v-model:value="form.username" placeholder="请输入账号" />
-        </n-form-item>
-        <n-form-item label="密码">
-          <n-input v-model:value="form.password" type="password" placeholder="请输入密码" />
-        </n-form-item>
+      <el-form @submit.prevent="submit">
+        <el-form-item label="账号">
+          <el-input v-model="form.username" placeholder="请输入账号" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
+        </el-form-item>
         <div id="aliyun-captcha-element" class="captcha-element"></div>
         <button
           id="aliyun-captcha-button"
@@ -19,10 +19,10 @@
           tabindex="-1"
           aria-hidden="true"
         ></button>
-        <n-button type="primary" block :loading="loading || captchaLoading" @click="submit">
+        <el-button class="block-button" type="primary" :loading="loading || captchaLoading" @click="submit">
           登录
-        </n-button>
-      </n-form>
+        </el-button>
+      </el-form>
     </div>
   </section>
 </template>
@@ -30,9 +30,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { ElMessage } from 'element-plus'
 import { api } from '../api/client'
 import { adminBase } from '../adminRoute'
+import { useUserStore } from '../stores/modules/user'
 
 type AliyunCaptchaConfig = {
   region: string
@@ -70,7 +71,7 @@ const aliyunCaptchaScriptSrc =
 let aliyunCaptchaScriptPromise: Promise<void> | null = null
 
 const router = useRouter()
-const message = useMessage()
+const userStore = useUserStore()
 const loading = ref(false)
 const captchaLoading = ref(false)
 const captchaReady = ref(false)
@@ -94,11 +95,11 @@ async function submit() {
   if (!validateForm()) return
   if (captchaEnabled.value) {
     if (captchaError.value) {
-      message.error(captchaError.value)
+      ElMessage.error(captchaError.value)
       return
     }
     if (!captchaReady.value) {
-      message.warning(captchaLoading.value ? '验证码加载中，请稍后再试' : '验证码尚未就绪，请刷新页面')
+      ElMessage.warning(captchaLoading.value ? '验证码加载中，请稍后再试' : '验证码尚未就绪，请刷新页面')
       return
     }
     captchaButton.value?.click()
@@ -109,11 +110,11 @@ async function submit() {
 
 function validateForm() {
   if (!form.username.trim()) {
-    message.warning('请输入账号')
+    ElMessage.warning('请输入账号')
     return false
   }
   if (!form.password) {
-    message.warning('请输入密码')
+    ElMessage.warning('请输入密码')
     return false
   }
   return true
@@ -129,18 +130,18 @@ async function login(captchaVerifyParam?: string) {
     )
     const verifyCode = getCaptchaVerifyCode(headers)
     if (verifyCode && verifyCode !== 'T001') {
-      message.error(`验证码验证失败：${verifyCode}`)
+      ElMessage.error(`验证码验证失败：${verifyCode}`)
       return false
     }
-    localStorage.setItem('token', data.access_token)
+    userStore.setToken(data.access_token)
     router.push(adminBase)
     return true
   } catch (error: any) {
     const verifyCode = getCaptchaVerifyCode(error.response?.headers)
     if (verifyCode && verifyCode !== 'T001') {
-      message.error(`验证码验证失败：${verifyCode}`)
+      ElMessage.error(`验证码验证失败：${verifyCode}`)
     } else {
-      message.error(error.response?.data?.detail ?? '登录失败')
+      ElMessage.error(error.response?.data?.detail ?? '登录失败')
     }
     return false
   } finally {
@@ -183,7 +184,7 @@ async function setupCaptcha() {
     })
   } catch {
     captchaError.value = '验证码初始化失败，请刷新页面后重试'
-    message.error(captchaError.value)
+    ElMessage.error(captchaError.value)
   } finally {
     captchaLoading.value = false
   }
