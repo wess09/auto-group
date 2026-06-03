@@ -10,13 +10,7 @@
     <div class="content-band" style="margin-bottom: 16px">
       <div class="form-grid">
         <n-form-item label="目标群">
-          <n-checkbox-group v-model:value="selectedGroups">
-            <n-space>
-              <n-checkbox v-for="group in groups" :key="group.group_id" :value="group.group_id">
-                {{ group.name || group.group_id }}
-              </n-checkbox>
-            </n-space>
-          </n-checkbox-group>
+          <GroupSelector v-model="selectedGroups" :groups="groups" />
         </n-form-item>
       </div>
       <n-form-item label="公告内容">
@@ -35,8 +29,9 @@
 
 <script setup lang="ts">
 import { h, onMounted, ref } from 'vue'
-import { NButton, NPopconfirm, NSpace, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NPopconfirm, useMessage, type DataTableColumns } from 'naive-ui'
 import AdminLayout from '../components/AdminLayout.vue'
+import GroupSelector from '../components/GroupSelector.vue'
 import { api, type ManagedGroup } from '../api/client'
 
 const message = useMessage()

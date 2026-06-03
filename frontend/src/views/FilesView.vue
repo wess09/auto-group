@@ -9,13 +9,7 @@
     </div>
     <div class="content-band" style="margin-bottom: 16px">
       <n-form-item label="选择目标群">
-        <n-checkbox-group v-model:value="selectedGroups">
-          <n-space>
-            <n-checkbox v-for="group in groups" :key="group.group_id" :value="group.group_id">
-              {{ group.name || group.group_id }}
-            </n-checkbox>
-          </n-space>
-        </n-checkbox-group>
+        <GroupSelector v-model="selectedGroups" :groups="groups" />
       </n-form-item>
       <div class="form-grid">
         <n-form-item label="文件路径">
@@ -43,6 +37,7 @@
 import { h, onMounted, ref } from 'vue'
 import { NButton, NPopconfirm, NSpace, useMessage, type DataTableColumns, type UploadCustomRequestOptions } from 'naive-ui'
 import AdminLayout from '../components/AdminLayout.vue'
+import GroupSelector from '../components/GroupSelector.vue'
 import { api, type ManagedGroup } from '../api/client'
 
 const message = useMessage()

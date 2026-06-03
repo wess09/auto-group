@@ -2,6 +2,19 @@
   box-sizing: border-box;
 }
 
+:root {
+  --auth-bg-image: url("https://api.yppp.net/api.php");
+  --md-primary: #2f6f62;
+  --md-primary-hover: #4b8375;
+  --md-primary-pressed: #25574d;
+  --md-on-primary: #ffffff;
+  --md-surface: #fbfdf9;
+  --md-on-surface: #191c1a;
+  --md-outline: #c0c9c3;
+  --md-secondary: #4f635b;
+  --md-scrim: #000000;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -42,7 +55,7 @@ a {
   gap: 10px;
   padding: 0 18px;
   font-weight: 700;
-  color: #12342d;
+  color: var(--md-primary);
 }
 
 .brand-mark {
@@ -51,7 +64,7 @@ a {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #163c35;
+  background: var(--md-primary);
   color: #f5f2df;
 }
 
@@ -122,7 +135,7 @@ a {
   margin-top: 8px;
   font-size: 28px;
   font-weight: 700;
-  color: #173f37;
+  color: var(--md-primary);
 }
 
 .content-band {
@@ -205,7 +218,7 @@ a {
 
 .breakdown-row strong {
   font-size: 18px;
-  color: #173f37;
+  color: var(--md-primary);
 }
 
 .trend-bars {
@@ -243,15 +256,15 @@ a {
 }
 
 .trend-bar.message {
-  background: #1f8fce;
+  background: var(--md-primary);
 }
 
 .trend-bar.admin {
-  background: #245d4f;
+  background: var(--md-primary-pressed);
 }
 
 .trend-bar.join {
-  background: #36a66a;
+  background: var(--md-primary-hover);
 }
 
 .trend-bar.leave {
@@ -281,7 +294,7 @@ a {
 .rank-meter div {
   height: 100%;
   border-radius: inherit;
-  background: #2f9f60;
+  background: var(--md-primary);
 }
 
 .json-cell {
@@ -302,7 +315,7 @@ a {
 }
 
 .drag-handle:hover {
-  color: #167044;
+  color: var(--md-primary);
   background: #edf7f1;
 }
 
@@ -355,9 +368,8 @@ a {
   place-items: center;
   padding: 24px;
   background:
-    linear-gradient(135deg, rgba(22, 60, 53, 0.88), rgba(68, 86, 76, 0.72)),
-    url("https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80")
-      center/cover;
+    linear-gradient(135deg, color-mix(in srgb, var(--md-primary) 72%, transparent), rgba(15, 22, 20, 0.42)),
+    var(--auth-bg-image) center/cover;
 }
 
 .login-panel,
@@ -377,12 +389,42 @@ a {
 .join-title {
   margin: 0;
   font-size: 28px;
-  color: #12342d;
+  color: var(--md-primary);
 }
 
 .join-meta {
   margin: 16px 0;
   color: #5c6d66;
+}
+
+.group-selector {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.group-selector-head,
+.group-selector-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-selector-head {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.group-selector-actions {
+  color: #60716b;
+}
+
+.group-selector-count {
+  font-size: 13px;
+}
+
+.group-selector-options {
+  max-width: 100%;
 }
 
 .captcha-element {

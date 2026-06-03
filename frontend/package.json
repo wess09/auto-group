@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@material/material-color-utilities": "^0.4.0",
     "@types/sortablejs": "^1.15.9",
     "@vicons/tabler": "^0.13.0",
     "axios": "^1.7.7",
