@@ -127,6 +127,19 @@ class DedupeWhitelistPatch(BaseModel):
     enabled: bool | None = None
 
 
+class JoinBlacklistIn(BaseModel):
+    user_id: int
+    enabled: bool = True
+    reason: str = "你已被加入黑名单，无法申请入群。"
+    note: str = ""
+
+
+class JoinBlacklistPatch(BaseModel):
+    enabled: bool | None = None
+    reason: str | None = None
+    note: str | None = None
+
+
 class PublicGroupOut(BaseModel):
     available: bool
     group_id: int | None = None

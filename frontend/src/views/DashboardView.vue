@@ -132,6 +132,7 @@ const resultLabels: Record<string, string> = {
   approved: '已通过',
   rejected: '已拒绝',
   redirected: '已分流',
+  blacklisted: '黑名单拒绝',
   pending: '待处理',
   unknown: '未知'
 }

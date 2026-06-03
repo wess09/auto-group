@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
@@ -36,7 +36,7 @@ class MessageModerationAction(str, Enum):
 
 
 class ManagedGroup(SQLModel, table=True):
-    __tablename__ = "managed_groups"
+    __tablename__: ClassVar[str] = "managed_groups"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True, unique=True)
@@ -55,7 +55,7 @@ class ManagedGroup(SQLModel, table=True):
 
 
 class AnswerRule(SQLModel, table=True):
-    __tablename__ = "answer_rules"
+    __tablename__: ClassVar[str] = "answer_rules"
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -69,7 +69,7 @@ class AnswerRule(SQLModel, table=True):
 
 
 class MessageModerationRule(SQLModel, table=True):
-    __tablename__ = "message_moderation_rules"
+    __tablename__: ClassVar[str] = "message_moderation_rules"
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -84,7 +84,7 @@ class MessageModerationRule(SQLModel, table=True):
 
 
 class JoinRequest(SQLModel, table=True):
-    __tablename__ = "join_requests"
+    __tablename__: ClassVar[str] = "join_requests"
 
     id: int | None = Field(default=None, primary_key=True)
     flag: str = Field(index=True)
@@ -100,7 +100,7 @@ class JoinRequest(SQLModel, table=True):
 
 
 class GroupMember(SQLModel, table=True):
-    __tablename__ = "group_members"
+    __tablename__: ClassVar[str] = "group_members"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -113,7 +113,7 @@ class GroupMember(SQLModel, table=True):
 
 
 class LeaveEvent(SQLModel, table=True):
-    __tablename__ = "leave_events"
+    __tablename__: ClassVar[str] = "leave_events"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -125,7 +125,7 @@ class LeaveEvent(SQLModel, table=True):
 
 
 class MemberActivityStat(SQLModel, table=True):
-    __tablename__ = "member_activity_stats"
+    __tablename__: ClassVar[str] = "member_activity_stats"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -139,7 +139,7 @@ class MemberActivityStat(SQLModel, table=True):
 
 
 class DedupeJob(SQLModel, table=True):
-    __tablename__ = "dedupe_jobs"
+    __tablename__: ClassVar[str] = "dedupe_jobs"
 
     id: int | None = Field(default=None, primary_key=True)
     status: TaskStatus = TaskStatus.preview
@@ -149,7 +149,7 @@ class DedupeJob(SQLModel, table=True):
 
 
 class DedupeAction(SQLModel, table=True):
-    __tablename__ = "dedupe_actions"
+    __tablename__: ClassVar[str] = "dedupe_actions"
 
     id: int | None = Field(default=None, primary_key=True)
     job_id: int = Field(index=True)
@@ -164,7 +164,7 @@ class DedupeAction(SQLModel, table=True):
 
 
 class DedupeWhitelist(SQLModel, table=True):
-    __tablename__ = "dedupe_whitelist"
+    __tablename__: ClassVar[str] = "dedupe_whitelist"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(index=True, unique=True)
@@ -174,8 +174,20 @@ class DedupeWhitelist(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=now_utc)
 
 
+class JoinBlacklist(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "join_blacklist"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, unique=True)
+    enabled: bool = True
+    reason: str = "你已被加入黑名单，无法申请入群。"
+    note: str = ""
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
 class Announcement(SQLModel, table=True):
-    __tablename__ = "announcements"
+    __tablename__: ClassVar[str] = "announcements"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -189,7 +201,7 @@ class Announcement(SQLModel, table=True):
 
 
 class FileDistributionJob(SQLModel, table=True):
-    __tablename__ = "file_distribution_jobs"
+    __tablename__: ClassVar[str] = "file_distribution_jobs"
 
     id: int | None = Field(default=None, primary_key=True)
     file_name: str
@@ -202,7 +214,7 @@ class FileDistributionJob(SQLModel, table=True):
 
 
 class GroupFile(SQLModel, table=True):
-    __tablename__ = "group_files"
+    __tablename__: ClassVar[str] = "group_files"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -218,7 +230,7 @@ class GroupFile(SQLModel, table=True):
 
 
 class EssenceMessage(SQLModel, table=True):
-    __tablename__ = "essence_messages"
+    __tablename__: ClassVar[str] = "essence_messages"
 
     id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(index=True)
@@ -232,7 +244,7 @@ class EssenceMessage(SQLModel, table=True):
 
 
 class Admin(SQLModel, table=True):
-    __tablename__ = "admins"
+    __tablename__: ClassVar[str] = "admins"
 
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
@@ -241,7 +253,7 @@ class Admin(SQLModel, table=True):
 
 
 class AuditLog(SQLModel, table=True):
-    __tablename__ = "audit_logs"
+    __tablename__: ClassVar[str] = "audit_logs"
 
     id: int | None = Field(default=None, primary_key=True)
     admin_id: int | None = None

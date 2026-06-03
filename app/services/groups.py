@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.models import ManagedGroup
@@ -24,7 +24,7 @@ def get_recommended_group(session: Session, require_join_url: bool = True) -> Ma
     groups = session.exec(
         select(ManagedGroup)
         .where(ManagedGroup.enabled == True)  # noqa: E712
-        .order_by(ManagedGroup.priority.desc(), ManagedGroup.current_members.asc())
+        .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.current_members).asc())
     ).all()
     for group in groups:
         if require_join_url and not group.join_url:
@@ -46,7 +46,7 @@ def get_unfilled_prioritized_group(
             ManagedGroup.enabled == True,  # noqa: E712
             ManagedGroup.priority > source_group.priority,
         )
-        .order_by(ManagedGroup.priority.desc(), ManagedGroup.current_members.asc())
+        .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.current_members).asc())
     ).all()
     for group in groups:
         if has_group_capacity(group):

@@ -12,6 +12,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.core.database import engine
 from app.models import JoinRequest, LeaveEvent, ManagedGroup, MemberActivityStat
 from app.services.group_sync import sync_one_group_info
@@ -20,6 +21,7 @@ from app.services.groups import (
     get_unfilled_prioritized_group,
     render_redirect_message,
 )
+from app.services.join_blacklist import get_enabled_blacklist_item
 from app.services.message_moderation import moderate_group_message
 from app.services.rules import find_matching_rule
 
@@ -63,7 +65,9 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
 
     raw_event = event_to_dict(event)
     answer = extract_answer(getattr(event, "comment", "") or "")
+    settings = get_settings()
     with Session(engine) as session:
+        blacklist_item = get_enabled_blacklist_item(session, event.user_id)
         source_group = session.exec(
             select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)
         ).first()
@@ -75,7 +79,17 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
         reason = ""
         matched_rule_id: int | None = None
 
-        if redirect_group:
+        if blacklist_item:
+            reason = blacklist_item.reason or settings.public_fallback_message
+            await bot.call_api(
+                "set_group_add_request",
+                flag=event.flag,
+                sub_type=event.sub_type,
+                approve=False,
+                reason=reason,
+            )
+            result = "blacklisted"
+        elif redirect_group:
             reason = render_redirect_message(redirect_group, source_group)
             await bot.call_api(
                 "set_group_add_request",
@@ -172,22 +186,27 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
 async def handle_group_member_change(event: NoticeEvent) -> None:
     if event.notice_type not in {"group_increase", "group_decrease"}:
         return
+    group_id = int(getattr(event, "group_id", 0) or 0)
+    user_id = int(getattr(event, "user_id", 0) or 0)
+    sub_type = str(getattr(event, "sub_type", ""))
+    if group_id <= 0 or user_id <= 0:
+        return
     should_sync = False
     with Session(engine) as session:
-        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == event.group_id)).first()
+        group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
         if not group:
             return
         should_sync = True
         if event.notice_type == "group_decrease":
             session.add(
                 LeaveEvent(
-                    group_id=event.group_id,
-                    user_id=event.user_id,
+                    group_id=group_id,
+                    user_id=user_id,
                     operator_id=getattr(event, "operator_id", None),
-                    sub_type=event.sub_type,
+                    sub_type=sub_type,
                     raw_event=event_to_dict(event),
                 )
             )
         session.commit()
     if should_sync:
-        asyncio.create_task(sync_group_info_safely(event.group_id))
+        asyncio.create_task(sync_group_info_safely(group_id))

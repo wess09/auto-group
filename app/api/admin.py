@@ -1,9 +1,10 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Protocol, Sequence
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from sqlmodel import delete, func, select
+from sqlmodel import col, delete, func, select
 
 from app.api.deps import AdminDep, SessionDep
 from app.core.config import get_settings
@@ -16,6 +17,7 @@ from app.models import (
     EssenceMessage,
     FileDistributionJob,
     GroupFile,
+    JoinBlacklist,
     JoinRequest,
     LeaveEvent,
     MemberActivityStat,
@@ -37,6 +39,8 @@ from app.schemas.admin import (
     FileDistributeIn,
     GenericResult,
     GroupFileDeleteIn,
+    JoinBlacklistIn,
+    JoinBlacklistPatch,
     ManagedGroupIn,
     ManagedGroupPatch,
     MessageModerationRuleIn,
@@ -66,7 +70,11 @@ from app.services.sync import (
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def _patch_model(model: object, payload: object) -> None:
+class PatchPayload(Protocol):
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]: ...
+
+
+def _patch_model(model: object, payload: PatchPayload) -> None:
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(model, key, value)
 
@@ -75,71 +83,83 @@ def _status_value(status: object) -> str:
     return str(getattr(status, "value", status))
 
 
+def _as_list(items: Sequence[Any]) -> list[Any]:
+    return list(items)
+
+
+def _required_id(value: int | None) -> int:
+    if value is None:
+        raise RuntimeError("数据库对象缺少 ID")
+    return value
+
+
 @router.get("/dashboard", response_model=DashboardOut)
 def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
     del admin
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     trend_start = today_start - timedelta(days=6)
-    recent_logs = session.exec(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(8)).all()
+    recent_logs = session.exec(select(AuditLog).order_by(col(AuditLog.created_at).desc()).limit(8)).all()
     top_groups = session.exec(
-        select(ManagedGroup).order_by(ManagedGroup.current_members.desc()).limit(6)
+        select(ManagedGroup).order_by(col(ManagedGroup.current_members).desc()).limit(6)
     ).all()
     recent_leaves = session.exec(
         select(LeaveEvent)
-        .where(LeaveEvent.group_id.in_(select(ManagedGroup.group_id)))
-        .order_by(LeaveEvent.created_at.desc())
+        .where(col(LeaveEvent.group_id).in_(select(ManagedGroup.group_id)))
+        .order_by(col(LeaveEvent.created_at).desc())
         .limit(8)
     ).all()
     join_breakdown_rows = session.exec(
-        select(JoinRequest.result, func.count(JoinRequest.id)).group_by(JoinRequest.result)
+        select(col(JoinRequest.result), func.count(col(JoinRequest.id))).group_by(
+            col(JoinRequest.result)
+        )
     ).all()
     audit_trend_rows = session.exec(
-        select(func.date(AuditLog.created_at), func.count(AuditLog.id))
-        .where(AuditLog.created_at >= trend_start)
-        .group_by(func.date(AuditLog.created_at))
+        select(func.date(col(AuditLog.created_at)), func.count(col(AuditLog.id)))
+        .where(col(AuditLog.created_at) >= trend_start)
+        .group_by(func.date(col(AuditLog.created_at)))
     ).all()
     join_trend_rows = session.exec(
-        select(func.date(JoinRequest.created_at), func.count(JoinRequest.id))
-        .where(JoinRequest.created_at >= trend_start)
-        .group_by(func.date(JoinRequest.created_at))
+        select(func.date(col(JoinRequest.created_at)), func.count(col(JoinRequest.id)))
+        .where(col(JoinRequest.created_at) >= trend_start)
+        .group_by(func.date(col(JoinRequest.created_at)))
     ).all()
     leave_trend_rows = session.exec(
-        select(func.date(LeaveEvent.created_at), func.count(LeaveEvent.id))
+        select(func.date(col(LeaveEvent.created_at)), func.count(col(LeaveEvent.id)))
         .where(
-            LeaveEvent.created_at >= trend_start,
-            LeaveEvent.group_id.in_(select(ManagedGroup.group_id)),
+            col(LeaveEvent.created_at) >= trend_start,
+            col(LeaveEvent.group_id).in_(select(ManagedGroup.group_id)),
         )
-        .group_by(func.date(LeaveEvent.created_at))
+        .group_by(func.date(col(LeaveEvent.created_at)))
     ).all()
     message_trend_rows = session.exec(
-        select(MemberActivityStat.stat_date, func.sum(MemberActivityStat.message_count))
-        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
-        .group_by(MemberActivityStat.stat_date)
+        select(col(MemberActivityStat.stat_date), func.sum(col(MemberActivityStat.message_count)))
+        .where(col(MemberActivityStat.stat_date) >= trend_start.date().isoformat())
+        .group_by(col(MemberActivityStat.stat_date))
     ).all()
     active_group_rows = session.exec(
         select(
-            MemberActivityStat.group_id,
-            func.sum(MemberActivityStat.message_count),
-            func.count(MemberActivityStat.user_id),
+            col(MemberActivityStat.group_id),
+            func.sum(col(MemberActivityStat.message_count)),
+            func.count(col(MemberActivityStat.user_id)),
         )
-        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
-        .group_by(MemberActivityStat.group_id)
-        .order_by(func.sum(MemberActivityStat.message_count).desc())
+        .where(col(MemberActivityStat.stat_date) >= trend_start.date().isoformat())
+        .group_by(col(MemberActivityStat.group_id))
+        .order_by(func.sum(col(MemberActivityStat.message_count)).desc())
         .limit(8)
     ).all()
     active_member_rows = session.exec(
         select(
-            MemberActivityStat.group_id,
-            MemberActivityStat.user_id,
-            func.max(MemberActivityStat.nickname),
-            func.max(MemberActivityStat.card),
-            func.sum(MemberActivityStat.message_count),
-            func.max(MemberActivityStat.last_active_at),
+            col(MemberActivityStat.group_id),
+            col(MemberActivityStat.user_id),
+            func.max(col(MemberActivityStat.nickname)),
+            func.max(col(MemberActivityStat.card)),
+            func.sum(col(MemberActivityStat.message_count)),
+            func.max(col(MemberActivityStat.last_active_at)),
         )
-        .where(MemberActivityStat.stat_date >= trend_start.date().isoformat())
-        .group_by(MemberActivityStat.group_id, MemberActivityStat.user_id)
-        .order_by(func.sum(MemberActivityStat.message_count).desc())
+        .where(col(MemberActivityStat.stat_date) >= trend_start.date().isoformat())
+        .group_by(col(MemberActivityStat.group_id), col(MemberActivityStat.user_id))
+        .order_by(func.sum(col(MemberActivityStat.message_count)).desc())
         .limit(12)
     ).all()
     group_names = {
@@ -163,42 +183,42 @@ def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
             }
         )
     return DashboardOut(
-        groups=session.exec(select(func.count(ManagedGroup.id))).one(),
+        groups=session.exec(select(func.count(col(ManagedGroup.id)))).one(),
         enabled_groups=session.exec(
-            select(func.count(ManagedGroup.id)).where(ManagedGroup.enabled == True)  # noqa: E712
+            select(func.count(col(ManagedGroup.id))).where(ManagedGroup.enabled == True)  # noqa: E712
         ).one(),
-        join_requests=session.exec(select(func.count(JoinRequest.id))).one(),
+        join_requests=session.exec(select(func.count(col(JoinRequest.id)))).one(),
         leave_events=session.exec(
-            select(func.count(LeaveEvent.id)).where(
-                LeaveEvent.group_id.in_(select(ManagedGroup.group_id))
+            select(func.count(col(LeaveEvent.id))).where(
+                col(LeaveEvent.group_id).in_(select(ManagedGroup.group_id))
             )
         ).one(),
-        announcements=session.exec(select(func.count(Announcement.id))).one(),
-        files=session.exec(select(func.count(GroupFile.id))).one(),
-        essence_messages=session.exec(select(func.count(EssenceMessage.id))).one(),
-        total_members=session.exec(select(func.sum(ManagedGroup.current_members))).one() or 0,
+        announcements=session.exec(select(func.count(col(Announcement.id)))).one(),
+        files=session.exec(select(func.count(col(GroupFile.id)))).one(),
+        essence_messages=session.exec(select(func.count(col(EssenceMessage.id)))).one(),
+        total_members=session.exec(select(func.sum(col(ManagedGroup.current_members)))).one() or 0,
         today_join_requests=session.exec(
-            select(func.count(JoinRequest.id)).where(JoinRequest.created_at >= today_start)
+            select(func.count(col(JoinRequest.id))).where(col(JoinRequest.created_at) >= today_start)
         ).one(),
         today_leave_events=session.exec(
-            select(func.count(LeaveEvent.id)).where(
-                LeaveEvent.created_at >= today_start,
-                LeaveEvent.group_id.in_(select(ManagedGroup.group_id)),
+            select(func.count(col(LeaveEvent.id))).where(
+                col(LeaveEvent.created_at) >= today_start,
+                col(LeaveEvent.group_id).in_(select(ManagedGroup.group_id)),
             )
         ).one(),
         today_admin_actions=session.exec(
-            select(func.count(AuditLog.id)).where(AuditLog.created_at >= today_start)
+            select(func.count(col(AuditLog.id))).where(col(AuditLog.created_at) >= today_start)
         ).one(),
         today_messages=session.exec(
-            select(func.sum(MemberActivityStat.message_count)).where(
-                MemberActivityStat.stat_date == today_start.date().isoformat()
+            select(func.sum(col(MemberActivityStat.message_count))).where(
+                col(MemberActivityStat.stat_date) == today_start.date().isoformat()
             )
         ).one()
         or 0,
         today_active_members=session.exec(
-            select(func.count(MemberActivityStat.id)).where(
-                MemberActivityStat.stat_date == today_start.date().isoformat(),
-                MemberActivityStat.message_count > 0,
+            select(func.count(col(MemberActivityStat.id))).where(
+                col(MemberActivityStat.stat_date) == today_start.date().isoformat(),
+                col(MemberActivityStat.message_count) > 0,
             )
         ).one(),
         join_result_breakdown=[
@@ -245,7 +265,7 @@ def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
 @router.get("/groups")
 def list_groups(session: SessionDep, admin: AdminDep) -> list[ManagedGroup]:
     del admin
-    return session.exec(select(ManagedGroup).order_by(ManagedGroup.priority.desc())).all()
+    return _as_list(session.exec(select(ManagedGroup).order_by(col(ManagedGroup.priority).desc())).all())
 
 
 @router.post("/groups")
@@ -313,7 +333,7 @@ async def sync_group(group_id: int, session: SessionDep, admin: AdminDep) -> Gen
 @router.get("/rules")
 def list_rules(session: SessionDep, admin: AdminDep) -> list[AnswerRule]:
     del admin
-    return session.exec(select(AnswerRule).order_by(AnswerRule.id.desc())).all()
+    return _as_list(session.exec(select(AnswerRule).order_by(col(AnswerRule.id).desc())).all())
 
 
 @router.post("/rules")
@@ -356,14 +376,84 @@ def delete_rule(rule_id: int, session: SessionDep, admin: AdminDep) -> GenericRe
     return GenericResult(ok=True, message="已删除")
 
 
+@router.get("/join-blacklist")
+def list_join_blacklist(session: SessionDep, admin: AdminDep) -> list[JoinBlacklist]:
+    del admin
+    return _as_list(
+        session.exec(select(JoinBlacklist).order_by(col(JoinBlacklist.created_at).desc())).all()
+    )
+
+
+@router.post("/join-blacklist")
+def create_join_blacklist_item(
+    payload: JoinBlacklistIn,
+    session: SessionDep,
+    admin: AdminDep,
+) -> JoinBlacklist:
+    exists = session.exec(
+        select(JoinBlacklist).where(JoinBlacklist.user_id == payload.user_id)
+    ).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="该 QQ 已在黑名单中")
+    item = JoinBlacklist(**payload.model_dump())
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    add_audit(session, "join_blacklist.create", str(item.user_id), payload.model_dump(), admin)
+    return item
+
+
+@router.patch("/join-blacklist/{item_id}")
+def update_join_blacklist_item(
+    item_id: int,
+    payload: JoinBlacklistPatch,
+    session: SessionDep,
+    admin: AdminDep,
+) -> JoinBlacklist:
+    item = session.get(JoinBlacklist, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="黑名单不存在")
+    _patch_model(item, payload)
+    item.updated_at = datetime.now(timezone.utc)
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    add_audit(
+        session,
+        "join_blacklist.update",
+        str(item.user_id),
+        payload.model_dump(exclude_unset=True),
+        admin,
+    )
+    return item
+
+
+@router.delete("/join-blacklist/{item_id}", response_model=GenericResult)
+def delete_join_blacklist_item(
+    item_id: int,
+    session: SessionDep,
+    admin: AdminDep,
+) -> GenericResult:
+    item = session.get(JoinBlacklist, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="黑名单不存在")
+    user_id = item.user_id
+    session.delete(item)
+    session.commit()
+    add_audit(session, "join_blacklist.delete", str(user_id), {}, admin)
+    return GenericResult(ok=True, message="已删除")
+
+
 @router.get("/message-moderation-rules")
 def list_message_moderation_rules(
     session: SessionDep, admin: AdminDep
 ) -> list[MessageModerationRule]:
     del admin
-    return session.exec(
-        select(MessageModerationRule).order_by(MessageModerationRule.id.desc())
-    ).all()
+    return _as_list(
+        session.exec(
+            select(MessageModerationRule).order_by(col(MessageModerationRule.id).desc())
+        ).all()
+    )
 
 
 @router.post("/message-moderation-rules")
@@ -429,24 +519,32 @@ def delete_message_moderation_rule(
 @router.get("/join-requests")
 def join_requests(session: SessionDep, admin: AdminDep) -> list[JoinRequest]:
     del admin
-    return session.exec(select(JoinRequest).order_by(JoinRequest.created_at.desc()).limit(200)).all()
+    return _as_list(
+        session.exec(select(JoinRequest).order_by(col(JoinRequest.created_at).desc()).limit(200)).all()
+    )
 
 
 @router.get("/leave-events")
 def leave_events(session: SessionDep, admin: AdminDep) -> list[LeaveEvent]:
     del admin
-    return session.exec(
-        select(LeaveEvent)
-        .where(LeaveEvent.group_id.in_(select(ManagedGroup.group_id)))
-        .order_by(LeaveEvent.created_at.desc())
-        .limit(200)
-    ).all()
+    return _as_list(
+        session.exec(
+            select(LeaveEvent)
+            .where(col(LeaveEvent.group_id).in_(select(ManagedGroup.group_id)))
+            .order_by(col(LeaveEvent.created_at).desc())
+            .limit(200)
+        ).all()
+    )
 
 
 @router.get("/dedupe/whitelist")
 def dedupe_whitelist(session: SessionDep, admin: AdminDep) -> list[DedupeWhitelist]:
     del admin
-    return session.exec(select(DedupeWhitelist).order_by(DedupeWhitelist.created_at.desc())).all()
+    return _as_list(
+        session.exec(
+            select(DedupeWhitelist).order_by(col(DedupeWhitelist.created_at).desc())
+        ).all()
+    )
 
 
 @router.post("/dedupe/whitelist")
@@ -512,10 +610,11 @@ def delete_dedupe_whitelist(
 @router.post("/dedupe/preview", response_model=DedupePreviewOut)
 async def dedupe_preview(session: SessionDep, admin: AdminDep) -> DedupePreviewOut:
     job = create_realtime_dedupe_preview_job(session)
-    asyncio.create_task(run_realtime_preview_task(job.id))
-    add_audit(session, "dedupe.preview.start", str(job.id), job.summary, admin)
+    job_id = _required_id(job.id)
+    asyncio.create_task(run_realtime_preview_task(job_id))
+    add_audit(session, "dedupe.preview.start", str(job_id), job.summary, admin)
     return DedupePreviewOut(
-        job_id=job.id,
+        job_id=job_id,
         status=_status_value(job.status),
         summary=job.summary,
         duplicate_users=0,
@@ -558,15 +657,18 @@ async def dedupe_execute(
         job = queue_dedupe_execute(session, payload.job_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    asyncio.create_task(run_dedupe_execute_task(job.id))
-    add_audit(session, "dedupe.execute.start", str(job.id), job.summary, admin)
+    job_id = _required_id(job.id)
+    asyncio.create_task(run_dedupe_execute_task(job_id))
+    add_audit(session, "dedupe.execute.start", str(job_id), job.summary, admin)
     return job
 
 
 @router.get("/notices")
 def list_notices(session: SessionDep, admin: AdminDep) -> list[Announcement]:
     del admin
-    return session.exec(select(Announcement).order_by(Announcement.synced_at.desc())).all()
+    return _as_list(
+        session.exec(select(Announcement).order_by(col(Announcement.synced_at).desc())).all()
+    )
 
 
 @router.post("/notices/sync/{group_id}", response_model=GenericResult)
@@ -578,14 +680,14 @@ async def notices_sync(group_id: int, session: SessionDep, admin: AdminDep) -> G
 
 @router.post("/notices/send", response_model=GenericResult)
 async def notices_send(payload: NoticeSendIn, session: SessionDep, admin: AdminDep) -> GenericResult:
-    results: dict[int, str] = {}
+    results: dict[str, str] = {}
     for group_id in payload.group_ids:
         try:
             await onebot.send_group_notice(group_id, payload.content)
             await sync_group_notices(session, group_id)
-            results[group_id] = "success"
+            results[str(group_id)] = "success"
         except Exception as exc:  # noqa: BLE001
-            results[group_id] = str(exc)
+            results[str(group_id)] = str(exc)
     add_audit(session, "notice.send", ",".join(map(str, payload.group_ids)), results, admin)
     return GenericResult(ok=all(v == "success" for v in results.values()), data=results)
 
@@ -598,8 +700,8 @@ async def notices_delete(payload: NoticeDeleteIn, session: SessionDep, admin: Ad
             await onebot.delete_group_notice(payload.group_id, notice_id)
             session.exec(
                 delete(Announcement).where(
-                    Announcement.group_id == payload.group_id,
-                    Announcement.notice_id == notice_id,
+                    col(Announcement.group_id) == payload.group_id,
+                    col(Announcement.notice_id) == notice_id,
                 )
             )
             session.commit()
@@ -611,7 +713,7 @@ async def notices_delete(payload: NoticeDeleteIn, session: SessionDep, admin: Ad
 
 
 @router.post("/uploads", response_model=UploadOut)
-async def upload_file(file: UploadFile = File(...), admin: AdminDep = None) -> UploadOut:
+async def upload_file(file: UploadFile = File(...), admin: AdminDep | None = None) -> UploadOut:
     del admin
     settings = get_settings()
     settings.upload_path.mkdir(parents=True, exist_ok=True)
@@ -628,7 +730,9 @@ async def upload_file(file: UploadFile = File(...), admin: AdminDep = None) -> U
 @router.get("/files")
 def list_files(session: SessionDep, admin: AdminDep) -> list[GroupFile]:
     del admin
-    return session.exec(select(GroupFile).order_by(GroupFile.synced_at.desc())).all()
+    return _as_list(
+        session.exec(select(GroupFile).order_by(col(GroupFile.synced_at).desc())).all()
+    )
 
 
 @router.post("/files/sync/{group_id}", response_model=GenericResult)
@@ -690,8 +794,8 @@ async def files_delete(
     await onebot.delete_group_file(payload.group_id, payload.file_id, payload.busid)
     session.exec(
         delete(GroupFile).where(
-            GroupFile.group_id == payload.group_id,
-            GroupFile.file_id == payload.file_id,
+            col(GroupFile.group_id) == payload.group_id,
+            col(GroupFile.file_id) == payload.file_id,
         )
     )
     session.commit()
@@ -709,7 +813,11 @@ async def files_url(group_id: int, file_id: str, busid: int, admin: AdminDep) ->
 @router.get("/essence")
 def list_essence(session: SessionDep, admin: AdminDep) -> list[EssenceMessage]:
     del admin
-    return session.exec(select(EssenceMessage).order_by(EssenceMessage.synced_at.desc())).all()
+    return _as_list(
+        session.exec(
+            select(EssenceMessage).order_by(col(EssenceMessage.synced_at).desc())
+        ).all()
+    )
 
 
 @router.post("/essence/sync/{group_id}", response_model=GenericResult)
@@ -730,11 +838,14 @@ async def essence_create(
         try:
             sent = await onebot.send_group_message(group_id, payload.content)
             message_id = sent.get("message_id") if isinstance(sent, dict) else sent
-            await onebot.set_essence_msg(int(message_id))
+            if message_id is None:
+                raise RuntimeError("发送群消息后未返回 message_id")
+            message_id_int = int(message_id)
+            await onebot.set_essence_msg(message_id_int)
             session.add(
                 EssenceMessage(
                     group_id=group_id,
-                    message_id=int(message_id),
+                    message_id=message_id_int,
                     content=payload.content,
                     raw_data={"created_by_dashboard": True},
                 )
@@ -759,8 +870,8 @@ async def essence_delete(
             await onebot.delete_essence_msg(message_id)
             session.exec(
                 delete(EssenceMessage).where(
-                    EssenceMessage.group_id == payload.group_id,
-                    EssenceMessage.message_id == message_id,
+                    col(EssenceMessage.group_id) == payload.group_id,
+                    col(EssenceMessage.message_id) == message_id,
                 )
             )
             session.commit()
@@ -774,4 +885,6 @@ async def essence_delete(
 @router.get("/audit-logs")
 def audit_logs(session: SessionDep, admin: AdminDep) -> list[AuditLog]:
     del admin
-    return session.exec(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(300)).all()
+    return _as_list(
+        session.exec(select(AuditLog).order_by(col(AuditLog.created_at).desc()).limit(300)).all()
+    )

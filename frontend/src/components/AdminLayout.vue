@@ -29,6 +29,7 @@ import { NIcon, type MenuOption } from 'naive-ui'
 import { adminBase, adminPath } from '../adminRoute'
 import {
   Bell,
+  Ban,
   ClipboardCheck,
   Dashboard,
   Files,
@@ -58,6 +59,7 @@ const menuOptions: MenuOption[] = [
   { label: () => h(RouterLink, { to: adminBase }, { default: () => '仪表盘' }), key: adminBase, icon: icon(Dashboard) },
   { label: () => h(RouterLink, { to: adminPath('groups') }, { default: () => '群配置' }), key: adminPath('groups'), icon: icon(Users) },
   { label: () => h(RouterLink, { to: adminPath('rules') }, { default: () => '入群规则' }), key: adminPath('rules'), icon: icon(ClipboardCheck) },
+  { label: () => h(RouterLink, { to: adminPath('join-blacklist') }, { default: () => '加群黑名单' }), key: adminPath('join-blacklist'), icon: icon(Ban) },
   { label: () => h(RouterLink, { to: adminPath('message-moderation') }, { default: () => '消息审查' }), key: adminPath('message-moderation'), icon: icon(MessageReport) },
   { label: () => h(RouterLink, { to: adminPath('notices') }, { default: () => '公告管理' }), key: adminPath('notices'), icon: icon(Bell) },
   { label: () => h(RouterLink, { to: adminPath('files') }, { default: () => '群文件' }), key: adminPath('files'), icon: icon(Files) },

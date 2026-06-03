@@ -1,7 +1,7 @@
 import re
 from typing import Protocol
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.models import MessageModerationRule
 from app.models.entities import MessageModerationAction
@@ -35,7 +35,7 @@ def find_matching_moderation_rule(
     rules = session.exec(
         select(MessageModerationRule)
         .where(MessageModerationRule.enabled == True)  # noqa: E712
-        .order_by(MessageModerationRule.group_id.desc(), MessageModerationRule.id.desc())
+        .order_by(col(MessageModerationRule.group_id).desc(), col(MessageModerationRule.id).desc())
     ).all()
     for rule in rules:
         if rule.group_id is not None and rule.group_id != group_id:

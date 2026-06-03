@@ -1,3 +1,5 @@
+from typing import cast
+
 import nonebot
 from fastapi import FastAPI
 from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
@@ -19,7 +21,7 @@ def create_app() -> FastAPI:
     nonebot.load_plugin("app.bot.dashboard")
     nonebot.load_plugin("app.bot.events")
 
-    app = driver.server_app
+    app = cast(FastAPI, driver.server_app)
     app.title = settings.app_name
     @app.get("/")
     def root() -> dict[str, str]:

@@ -41,6 +41,7 @@ import EssenceView from './views/EssenceView.vue'
 import EventsView from './views/EventsView.vue'
 import FilesView from './views/FilesView.vue'
 import GroupsView from './views/GroupsView.vue'
+import JoinBlacklistView from './views/JoinBlacklistView.vue'
 import JoinView from './views/JoinView.vue'
 import LoginView from './views/LoginView.vue'
 import MessageModerationView from './views/MessageModerationView.vue'
@@ -93,6 +94,7 @@ const router = createRouter({
     { path: adminBase, component: DashboardView },
     { path: adminPath('groups'), component: GroupsView },
     { path: adminPath('rules'), component: RulesView },
+    { path: adminPath('join-blacklist'), component: JoinBlacklistView },
     { path: adminPath('message-moderation'), component: MessageModerationView },
     { path: adminPath('notices'), component: NoticesView },
     { path: adminPath('files'), component: FilesView },

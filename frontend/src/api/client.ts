@@ -64,3 +64,11 @@ export type MessageModerationRule = {
   mute_duration_seconds: number
   note: string
 }
+
+export type JoinBlacklistItem = {
+  id: number
+  user_id: number
+  enabled: boolean
+  reason: string
+  note: string
+}

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, col, delete, select
 
 from app.models import Announcement, EssenceMessage, GroupFile, GroupMember, ManagedGroup
 from app.services import onebot
@@ -29,7 +29,7 @@ async def sync_group_info(session: Session, group: ManagedGroup) -> ManagedGroup
 
 async def sync_group_members(session: Session, group_id: int) -> int:
     members = await onebot.get_group_member_list(group_id)
-    session.exec(delete(GroupMember).where(GroupMember.group_id == group_id))
+    session.exec(delete(GroupMember).where(col(GroupMember.group_id) == group_id))
     count = 0
     for item in members:
         session.add(
@@ -43,7 +43,7 @@ async def sync_group_members(session: Session, group_id: int) -> int:
             )
         )
         count += 1
-    group = session.exec(select(ManagedGroup).where(ManagedGroup.group_id == group_id)).first()
+    group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
     if group:
         group.current_members = count
         touch_group(group)
@@ -55,7 +55,7 @@ async def sync_group_members(session: Session, group_id: int) -> int:
 async def sync_group_notices(session: Session, group_id: int) -> int:
     data = await onebot.get_group_notices(group_id)
     notices = data if isinstance(data, list) else data.get("notices", data.get("data", []))
-    session.exec(delete(Announcement).where(Announcement.group_id == group_id))
+    session.exec(delete(Announcement).where(col(Announcement.group_id) == group_id))
     count = 0
     for item in notices or []:
         notice_id = str(_pick(item, "notice_id", "id", "fid", default=""))
@@ -80,7 +80,7 @@ async def sync_group_notices(session: Session, group_id: int) -> int:
 async def sync_group_files(session: Session, group_id: int) -> int:
     data = await onebot.get_group_root_files(group_id)
     files = data if isinstance(data, list) else data.get("files", data.get("data", []))
-    session.exec(delete(GroupFile).where(GroupFile.group_id == group_id))
+    session.exec(delete(GroupFile).where(col(GroupFile.group_id) == group_id))
     count = 0
     for item in files or []:
         file_id = str(_pick(item, "file_id", "id", default=""))
@@ -107,7 +107,7 @@ async def sync_group_files(session: Session, group_id: int) -> int:
 async def sync_essence_messages(session: Session, group_id: int) -> int:
     data = await onebot.get_essence_msg_list(group_id)
     messages = data if isinstance(data, list) else data.get("data", data.get("messages", []))
-    session.exec(delete(EssenceMessage).where(EssenceMessage.group_id == group_id))
+    session.exec(delete(EssenceMessage).where(col(EssenceMessage.group_id) == group_id))
     count = 0
     for item in messages or []:
         message_id = _pick(item, "message_id", "msg_seq")

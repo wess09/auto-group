@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, col, delete, select
 
 from app.core.database import engine
 from app.models import DedupeAction, DedupeJob, DedupeWhitelist, GroupMember, ManagedGroup
@@ -25,6 +25,12 @@ def _pick(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _required_id(value: int | None) -> int:
+    if value is None:
+        raise RuntimeError("数据库对象缺少 ID")
+    return value
 
 
 def _serialize_action(action: DedupeAction) -> dict[str, Any]:
@@ -63,7 +69,7 @@ def _enabled_groups(session: Session) -> dict[int, ManagedGroup]:
         for group in session.exec(
             select(ManagedGroup)
             .where(ManagedGroup.enabled == True)  # noqa: E712
-            .order_by(ManagedGroup.priority.desc(), ManagedGroup.group_id.asc())
+            .order_by(col(ManagedGroup.priority).desc(), col(ManagedGroup.group_id).asc())
         ).all()
     }
 
@@ -92,7 +98,7 @@ async def refresh_group_members(session: Session, group: ManagedGroup) -> int:
     members = await onebot.get_group_member_list(group.group_id)
     if not isinstance(members, list):
         raise RuntimeError(f"get_group_member_list 返回异常：{type(members).__name__}")
-    session.exec(delete(GroupMember).where(GroupMember.group_id == group.group_id))
+    session.exec(delete(GroupMember).where(col(GroupMember.group_id) == group.group_id))
     count = 0
     for item in members:
         member = _member_from_onebot(group.group_id, item)
@@ -130,7 +136,8 @@ def create_dedupe_preview(session: Session, job: DedupeJob | None = None) -> Ded
         session.commit()
         session.refresh(job)
     else:
-        session.exec(delete(DedupeAction).where(DedupeAction.job_id == job.id))
+        session.exec(delete(DedupeAction).where(col(DedupeAction.job_id) == _required_id(job.id)))
+    job_id = _required_id(job.id)
 
     action_count = 0
     duplicate_users = 0
@@ -178,7 +185,7 @@ def create_dedupe_preview(session: Session, job: DedupeJob | None = None) -> Ded
         for kick in sorted_members[1:]:
             session.add(
                 DedupeAction(
-                    job_id=job.id,
+                    job_id=job_id,
                     user_id=user_id,
                     nickname=kick.card or kick.nickname,
                     keep_group_id=keep.group_id,
@@ -309,7 +316,7 @@ def create_realtime_dedupe_preview_job(session: Session) -> DedupeJob:
 
 def start_realtime_dedupe_preview(session: Session) -> DedupeJob:
     job = create_realtime_dedupe_preview_job(session)
-    asyncio.create_task(run_realtime_preview_task(job.id))
+    asyncio.create_task(run_realtime_preview_task(_required_id(job.id)))
     return job
 
 
@@ -318,7 +325,7 @@ def get_dedupe_job_out(session: Session, job_id: int) -> dict[str, Any] | None:
     if not job:
         return None
     actions = session.exec(
-        select(DedupeAction).where(DedupeAction.job_id == job_id).order_by(DedupeAction.id)
+        select(DedupeAction).where(col(DedupeAction.job_id) == job_id).order_by(col(DedupeAction.id))
     ).all()
     return {
         "job_id": job.id,
@@ -360,7 +367,7 @@ async def run_dedupe_execute_task(job_id: int) -> None:
             if member.role in PROTECTED_ROLES
         }
         actions = session.exec(
-            select(DedupeAction).where(DedupeAction.job_id == job_id).order_by(DedupeAction.id)
+            select(DedupeAction).where(col(DedupeAction.job_id) == job_id).order_by(col(DedupeAction.id))
         ).all()
         total_actions = len(actions)
         _update_job(

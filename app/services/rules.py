@@ -1,6 +1,6 @@
 import re
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.models import AnswerRule
 from app.models.entities import LogicMode, MatchMode
@@ -36,7 +36,7 @@ def find_matching_rule(session: Session, group_id: int, answer: str) -> AnswerRu
     rules = session.exec(
         select(AnswerRule)
         .where(AnswerRule.enabled == True)  # noqa: E712
-        .order_by(AnswerRule.group_id.desc())
+        .order_by(col(AnswerRule.group_id).desc())
     ).all()
     for rule in rules:
         if rule.group_id is not None and rule.group_id != group_id:
