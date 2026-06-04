@@ -17,6 +17,7 @@ from app.models import (
     EssenceMessage,
     FileDistributionJob,
     GroupFile,
+    GroupMember,
     JoinBlacklist,
     JoinRequest,
     LeaveEvent,
@@ -37,6 +38,8 @@ from app.schemas.admin import (
     EssenceCreateIn,
     EssenceDeleteIn,
     FileDistributeIn,
+    FileRenameIn,
+    FolderRenameIn,
     GenericResult,
     GroupFileDeleteIn,
     JoinBlacklistIn,
@@ -189,6 +192,41 @@ def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
                 "messages": message_trend.get(day, 0),
             }
         )
+    uids = {event.user_id for event in recent_leaves} | {
+        event.operator_id for event in recent_leaves if event.operator_id
+    }
+    nicknames = {}
+    if uids:
+        stats = session.exec(
+            select(MemberActivityStat)
+            .where(col(MemberActivityStat.user_id).in_(list(uids)))
+            .order_by(col(MemberActivityStat.last_active_at).asc())
+        ).all()
+        for stat in stats:
+            name = stat.card or stat.nickname
+            if name:
+                nicknames[stat.user_id] = name
+        members = session.exec(
+            select(GroupMember)
+            .where(col(GroupMember.user_id).in_(list(uids)))
+            .order_by(col(GroupMember.synced_at).asc())
+        ).all()
+        for m in members:
+            name = m.card or m.nickname
+            if name:
+                nicknames[m.user_id] = name
+
+    recent_leave_events_list = []
+    for event in recent_leaves:
+        evt_dict = event.model_dump(mode="json")
+        evt_dict["nickname"] = nicknames.get(event.user_id) or str(event.user_id)
+        evt_dict["group_name"] = group_names.get(event.group_id) or str(event.group_id)
+        if event.operator_id:
+            evt_dict["operator_nickname"] = nicknames.get(event.operator_id) or str(event.operator_id)
+        else:
+            evt_dict["operator_nickname"] = ""
+        recent_leave_events_list.append(evt_dict)
+
     return DashboardOut(
         groups=session.exec(select(func.count(col(ManagedGroup.id)))).one(),
         enabled_groups=session.exec(
@@ -264,7 +302,7 @@ def dashboard(session: SessionDep, admin: AdminDep) -> DashboardOut:
             }
             for group_id, user_id, nickname, card, message_count, last_active_at in active_member_rows
         ],
-        recent_leave_events=[event.model_dump(mode="json") for event in recent_leaves],
+        recent_leave_events=recent_leave_events_list,
         recent_audit_logs=[log.model_dump(mode="json") for log in recent_logs],
     )
 
@@ -849,6 +887,63 @@ async def files_url(group_id: int, file_id: str, busid: int, admin: AdminDep) ->
     del admin
     data = await onebot.get_group_file_url(group_id, file_id, busid)
     return GenericResult(ok=True, data=data)
+
+
+@router.get("/files/browse/{group_id}")
+async def files_browse_root(group_id: int, admin: AdminDep) -> GenericResult:
+    del admin
+    data = await onebot.get_group_root_files(group_id)
+    return GenericResult(ok=True, data=data)
+
+
+@router.get("/files/browse/{group_id}/{folder_id:path}")
+async def files_browse_folder(
+    group_id: int, folder_id: str, admin: AdminDep
+) -> GenericResult:
+    del admin
+    data = await onebot.get_group_files_by_folder(group_id, folder_id)
+    return GenericResult(ok=True, data=data)
+
+
+@router.get("/files/info/{group_id}")
+async def files_system_info(group_id: int, admin: AdminDep) -> GenericResult:
+    del admin
+    data = await onebot.get_group_file_system_info(group_id)
+    return GenericResult(ok=True, data=data)
+
+
+@router.post("/files/rename", response_model=GenericResult)
+async def files_rename(
+    payload: FileRenameIn, session: SessionDep, admin: AdminDep
+) -> GenericResult:
+    await onebot.rename_group_file(
+        payload.group_id, payload.file_id, payload.current_parent_directory, payload.new_name
+    )
+    add_audit(
+        session,
+        "file.rename",
+        str(payload.group_id),
+        {"file_id": payload.file_id, "new_name": payload.new_name},
+        admin,
+    )
+    return GenericResult(ok=True, message="已重命名")
+
+
+@router.post("/files/rename-folder", response_model=GenericResult)
+async def files_rename_folder(
+    payload: FolderRenameIn, session: SessionDep, admin: AdminDep
+) -> GenericResult:
+    await onebot.rename_group_file_folder(
+        payload.group_id, payload.folder_id, payload.new_folder_name
+    )
+    add_audit(
+        session,
+        "file.rename_folder",
+        str(payload.group_id),
+        {"folder_id": payload.folder_id, "new_name": payload.new_folder_name},
+        admin,
+    )
+    return GenericResult(ok=True, message="已重命名")
 
 
 @router.get("/essence")

@@ -65,6 +65,7 @@ class MessageModerationRuleIn(BaseModel):
     group_id: int | None = None
     patterns: list[str] = Field(default_factory=list)
     cloud_review_enabled: bool = False
+    ocr_enabled: bool = False
     action: MessageModerationAction = MessageModerationAction.recall
     mute_duration_seconds: int = Field(default=600, ge=1)
     note: str = ""
@@ -76,6 +77,7 @@ class MessageModerationRulePatch(BaseModel):
     group_id: int | None = None
     patterns: list[str] | None = None
     cloud_review_enabled: bool | None = None
+    ocr_enabled: bool | None = None
     action: MessageModerationAction | None = None
     mute_duration_seconds: int | None = Field(default=None, ge=1)
     note: str | None = None
@@ -120,6 +122,19 @@ class GroupFileDeleteIn(BaseModel):
     group_id: int
     file_id: str
     busid: int
+
+
+class FileRenameIn(BaseModel):
+    group_id: int
+    file_id: str
+    current_parent_directory: str
+    new_name: str
+
+
+class FolderRenameIn(BaseModel):
+    group_id: int
+    folder_id: str
+    new_folder_name: str
 
 
 class EssenceCreateIn(BaseModel):

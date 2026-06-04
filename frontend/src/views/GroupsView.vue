@@ -10,7 +10,7 @@
         <el-button type="primary" @click="openCreate">新增群</el-button>
       </div>
     </div>
-    <div class="content-band">
+    <div class="content-band" v-loading="loading" element-loading-text="正在加载群配置列表..." style="min-height: 200px;">
       <el-table
         ref="tableRef"
         :data="groups"
@@ -18,7 +18,7 @@
         :row-key="rowKey"
         border
       >
-        <el-table-column width="48" align="center">
+        <el-table-column width="50" align="center" class-name="drag-column">
           <template #default>
             <button
               class="drag-handle"
@@ -48,7 +48,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="join_url" label="入群链接" min-width="220" show-overflow-tooltip />
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="230">
           <template #default="{ row }">
             <el-space>
               <el-button size="small" @click="openEdit(row)">编辑</el-button>
@@ -98,6 +98,7 @@ import { api, type ManagedGroup } from '../api/client'
 const groups = ref<ManagedGroup[]>([])
 const tableRef = ref<unknown>(null)
 const ordering = ref(false)
+const loading = ref(true)
 const sortable = ref<Sortable | null>(null)
 const showModal = ref(false)
 const editing = ref(false)
@@ -119,15 +120,22 @@ function rowKey(row: ManagedGroup) {
 }
 
 async function load() {
-  const { data } = await api.get('/admin/groups')
-  groups.value = data
-  await nextTick()
-  bindSortable()
+  loading.value = true
+  try {
+    const { data } = await api.get('/admin/groups')
+    groups.value = data
+    await nextTick()
+    bindSortable()
+  } catch (error: any) {
+    ElMessage.error('加载群配置失败：' + (error.response?.data?.detail || error.message))
+  } finally {
+    loading.value = false
+  }
 }
 
 function bindSortable() {
   const tableEl = (tableRef.value as { $el?: HTMLElement } | null)?.$el
-  const tbody = tableEl?.querySelector('.el-table__body-wrapper tbody') as HTMLElement | null
+  const tbody = (tableEl?.querySelector('.el-table__body tbody') || tableEl?.querySelector('.el-table__body-wrapper tbody') || tableEl?.querySelector('tbody')) as HTMLElement | null
   if (!tbody) return
   sortable.value?.destroy()
   sortable.value = Sortable.create(tbody, {

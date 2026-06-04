@@ -10,7 +10,7 @@
         <el-button type="primary" @click="openCreate">新增黑名单</el-button>
       </div>
     </div>
-    <div class="content-band">
+    <div class="content-band" v-loading="loading" element-loading-text="正在加载黑名单列表..." style="min-height: 200px;">
       <el-table :data="items" border>
         <el-table-column prop="user_id" label="QQ" width="140" />
         <el-table-column label="启用" width="90">
@@ -61,6 +61,7 @@ const items = ref<JoinBlacklistItem[]>([])
 const showModal = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
+const loading = ref(true)
 const defaultForm = {
   user_id: 0,
   enabled: true,
@@ -70,8 +71,15 @@ const defaultForm = {
 const form = reactive({ ...defaultForm })
 
 async function load() {
-  const { data } = await api.get('/admin/join-blacklist')
-  items.value = data
+  loading.value = true
+  try {
+    const { data } = await api.get('/admin/join-blacklist')
+    items.value = data
+  } catch (error: any) {
+    ElMessage.error('加载黑名单失败：' + (error.response?.data?.detail || error.message))
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

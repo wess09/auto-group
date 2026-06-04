@@ -13,11 +13,26 @@
   --md-outline: #c0c9c3;
   --md-secondary: #4f635b;
   --md-scrim: #000000;
-  --geeker-sider: #191f2a;
-  --geeker-sider-active: #243244;
-  --geeker-bg: #f5f7fa;
-  --geeker-border: #e4e7ed;
-  --geeker-text: #1f2937;
+  
+  /* 管理后台定制高级感颜色与背景 */
+  --geeker-sider: #0c101b; /* 更深邃优雅的暗夜蓝黑色 */
+  --geeker-sider-active: rgba(255, 255, 255, 0.08); /* 半透明激活背景 */
+  --geeker-bg: #f8fafc; /* 极具现代感的淡灰蓝背景 */
+  --geeker-border: #e2e8f0; /* 更淡雅的边框色 */
+  --geeker-text: #1e293b; /* slate-800，更精致舒适的文字色 */
+  --geeker-text-secondary: #64748b; /* 辅助文字色 */
+  
+  /* 现代后台材质阴影与发光体系 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+  --shadow-premium: 0 12px 24px -6px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.02);
+  --shadow-glow: 0 0 14px 0 color-mix(in srgb, var(--md-primary) 22%, transparent);
+  
+  /* 动效过渡 */
+  --transition-base: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  
   --el-color-primary: var(--md-primary);
   --el-color-primary-light-3: var(--md-primary-hover);
   --el-color-primary-dark-2: var(--md-primary-pressed);
@@ -47,35 +62,48 @@ a {
 }
 
 .geeker-layout {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   background: var(--geeker-bg);
+  overflow: hidden;
 }
 
 .geeker-sider {
-  width: 232px;
-  min-height: 100vh;
+  width: 240px;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   background: var(--geeker-sider);
-  transition: width 0.18s ease;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  transition: var(--transition-base);
+  z-index: 100;
 }
 
 .geeker-layout.is-collapsed .geeker-sider {
-  width: 68px;
+  width: 72px;
 }
 
 .geeker-logo {
-  height: 56px;
+  height: 60px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 18px;
+  gap: 12px;
+  padding: 0 20px;
   color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
   white-space: nowrap;
+}
+
+.geeker-logo strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(120deg, #ffffff, rgba(255, 255, 255, 0.8));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .geeker-logo-mark {
@@ -85,9 +113,11 @@ a {
   display: grid;
   place-items: center;
   flex: 0 0 32px;
-  background: var(--md-primary);
+  background: linear-gradient(135deg, var(--md-primary) 0%, var(--md-primary-hover) 100%);
   color: #ffffff;
   font-weight: 800;
+  font-size: 15px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--md-primary) 32%, transparent);
 }
 
 .geeker-menu-scroll {
@@ -97,24 +127,76 @@ a {
 .geeker-menu {
   border-right: 0;
   background: transparent;
+  padding: 12px 0;
 }
 
 .geeker-menu.el-menu,
 .geeker-menu .el-menu-item {
   --el-menu-bg-color: transparent;
-  --el-menu-text-color: #b9c2d0;
+  --el-menu-text-color: #94a3b8; /* 更优雅的灰字 */
   --el-menu-hover-bg-color: var(--geeker-sider-active);
   --el-menu-hover-text-color: #ffffff;
   --el-menu-active-color: #ffffff;
 }
 
 .geeker-menu .el-menu-item {
-  margin: 4px 10px;
+  height: 46px;
+  line-height: 46px;
+  margin: 4px 12px;
   border-radius: 8px;
+  font-size: 14px;
+  transition: var(--transition-base);
+}
+
+
+
+/* 侧边栏折叠状态下的全方位优化覆盖 (高优先级强制修正) */
+.geeker-layout.is-collapsed .geeker-logo {
+  padding: 0 !important;
+  justify-content: center !important;
+}
+
+.geeker-layout.is-collapsed .geeker-sider .geeker-menu.el-menu--collapse {
+  width: 72px !important;
+  --el-menu-collapse-width: 72px !important; /* 精准覆盖 Element Plus 的 64px 限制 */
+}
+
+.geeker-layout.is-collapsed .geeker-sider .geeker-menu.el-menu--collapse .el-menu-item {
+  width: 48px !important; /* 强制菜单项为 48px 宽 */
+  height: 46px !important; /* 强制菜单项为 46px 高 */
+  line-height: 46px !important;
+  padding: 0 !important;
+  margin: 4px 12px !important; /* 左右 12px + 宽度 48px = 72px 完美贴合 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+}
+
+.geeker-layout.is-collapsed .geeker-sider .geeker-menu.el-menu--collapse .el-menu-item * {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.geeker-layout.is-collapsed .geeker-sider .geeker-menu.el-menu--collapse .el-menu-item .el-icon {
+  font-size: 18px !important;
+}
+
+.geeker-layout.is-collapsed .geeker-sider .geeker-menu.el-menu--collapse .el-menu-item.is-active {
+  box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--md-primary) 32%, transparent) !important;
 }
 
 .geeker-menu .el-menu-item.is-active {
-  background: var(--geeker-sider-active);
+  background: linear-gradient(90deg, var(--md-primary) 0%, var(--md-primary-hover) 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px -2px color-mix(in srgb, var(--md-primary) 28%, transparent);
+}
+
+.geeker-menu .el-menu-item.is-active .el-icon {
+  color: #ffffff !important;
 }
 
 .geeker-container {
@@ -122,80 +204,208 @@ a {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .geeker-header {
-  height: 56px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 0 18px;
-  background: #ffffff;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--geeker-border);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.02);
+  z-index: 99;
 }
 
 .geeker-header-left,
 .geeker-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
 }
 
 .icon-button {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   padding: 0;
+  border-radius: 8px;
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button:hover {
+  background: #f1f5f9 !important;
+  transform: scale(1.05);
+}
+
+.icon-button:active {
+  transform: scale(0.95);
+}
+
+/* 优化面包屑导航的精细度 */
+.geeker-header .el-breadcrumb {
+  font-size: 14px;
+}
+
+.geeker-header .el-breadcrumb__inner {
+  color: var(--geeker-text-secondary) !important;
+  font-weight: 400;
+}
+
+.geeker-header .el-breadcrumb__item:last-child .el-breadcrumb__inner {
+  color: var(--geeker-text) !important;
+  font-weight: 600;
 }
 
 .geeker-tabs {
-  height: 42px;
+  height: 40px;
   display: flex;
-  align-items: center;
-  background: #ffffff;
+  align-items: flex-end; /* 贴底对齐 */
+  background: #f1f5f9; /* 稍微深灰色的底板，承托白色卡片 */
   border-bottom: 1px solid var(--geeker-border);
 }
 
 .geeker-tabs .el-scrollbar {
   width: 100%;
+  height: 100%;
+}
+
+.geeker-tabs .el-scrollbar__wrap {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.geeker-tabs .el-scrollbar__view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
 }
 
 .geeker-tabs-inner {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
+  align-items: flex-end;
+  gap: 0; /* 卡片式无间距紧挨 */
+  padding: 0 20px;
   white-space: nowrap;
 }
 
 .geeker-tab {
-  height: 28px;
+  position: relative;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--geeker-border);
-  border-radius: 6px;
-  background: #ffffff;
-  color: #606266;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: #64748b;
   font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* 标签之间的垂直分割线 */
+.geeker-tab:not(.active):not(:hover) + .geeker-tab:not(.active):not(:hover)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 1px;
+  height: 16px;
+  background-color: #cbd5e1;
+}
+
+.geeker-tab:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--geeker-text);
+  border-radius: 8px 8px 0 0;
 }
 
 .geeker-tab.active {
+  background: #ffffff;
   color: var(--md-primary);
-  border-color: color-mix(in srgb, var(--md-primary) 36%, #ffffff);
-  background: color-mix(in srgb, var(--md-primary) 8%, #ffffff);
+  font-weight: 600;
+  z-index: 3;
+  height: 33px; /* 突出一像素覆盖下底线 */
+  margin-bottom: -1px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.03);
+}
+
+/* Chrome 经典反向凹圆角 - 左下角 */
+.geeker-tab.active::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -8px;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 0 0, transparent 8px, #ffffff 8px);
+}
+
+/* Chrome 经典反向凹圆角 - 右下角 */
+.geeker-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -8px;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 100% 0, transparent 8px, #ffffff 8px);
 }
 
 .geeker-tab .el-icon {
-  font-size: 12px;
+  font-size: 11px;
+  border-radius: 50%;
+  padding: 2px;
+  transition: var(--transition-fast);
+}
+
+.geeker-tab .el-icon:hover {
+  background: #ef4444;
+  color: #ffffff !important;
+  transform: scale(1.15);
 }
 
 .geeker-main {
   min-width: 0;
   flex: 1;
-  padding: 18px;
+  padding: 12px;
+  overflow-y: auto;
+  height: calc(100vh - 100px);
+  background: var(--geeker-bg);
+}
+
+.geeker-main::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.geeker-main::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.12);
+  border-radius: 99px;
+}
+
+.geeker-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.geeker-main::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .admin-main {
@@ -209,19 +419,22 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.2;
   font-weight: 700;
+  color: var(--geeker-text);
+  letter-spacing: -0.5px;
 }
 
 .page-subtitle {
   margin: 6px 0 0;
-  color: #6b7280;
+  color: var(--geeker-text-secondary);
+  font-size: 13px;
 }
 
 .toolbar {
@@ -231,47 +444,316 @@ a {
   flex-wrap: wrap;
 }
 
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
+/* 新版紧凑型仪表盘样式 */
+.metric-row-v2 {
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
 }
 
-.metric {
-  padding: 16px;
-  border: 1px solid var(--geeker-border);
+.metric-row-v2 > .el-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-row-v2 .el-row {
+  width: 100%;
+  height: 100%;
+}
+
+.metric-row-v2 .el-row > .el-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-card-v2 {
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: var(--transition-base) !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-card-v2 .el-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric-card-v2:hover {
+  box-shadow: var(--shadow-md) !important;
+  border-color: color-mix(in srgb, var(--md-primary) 12%, #e2e8f0) !important;
+}
+
+.metric-card-header-v2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-card-title-v2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--geeker-text-secondary);
+}
+
+.metric-card-icon-v2 {
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
-  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
 }
 
-.metric-label {
-  color: #6b7280;
+.metric-card-value-v2 .el-statistic__content {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: var(--geeker-text) !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  letter-spacing: -0.5px !important;
+}
+
+/* 右侧系统资产概览面板 */
+.overview-panel-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: var(--shadow-sm) !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.overview-panel-card .el-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.overview-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--geeker-text);
+  margin-bottom: 10px;
+  border-left: 3px solid var(--md-primary);
+  padding-left: 6px;
+  line-height: 1;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 16px;
+}
+
+.overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.overview-item-icon {
+  font-size: 15px;
+}
+
+.overview-item-label {
+  font-size: 11px;
+  color: var(--geeker-text-secondary);
+  font-weight: 500;
+}
+
+.overview-item-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--geeker-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* 仪表盘重构：顶级指标大卡片样式 */
+.metric-row {
+  margin-bottom: 8px;
+}
+
+.metric-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: var(--transition-base) !important;
+}
+
+.metric-card:hover {
+  box-shadow: var(--shadow-md) !important;
+  border-color: color-mix(in srgb, var(--md-primary) 12%, #e2e8f0) !important;
+}
+
+.metric-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.metric-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--geeker-text-secondary);
+}
+
+.metric-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.metric-card-value .el-statistic__content {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: var(--geeker-text) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* 统一卡片式的区块 band */
+.content-band-card {
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: var(--shadow-premium) !important;
+}
+
+.content-band-card .el-card__header {
+  padding: 10px 16px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.content-band-card .el-card__body {
+  padding: 12px 16px !important;
+}
+
+/* breakdown 和活跃排行榜的进度条重构 */
+.breakdown-row-new {
+  margin-bottom: 16px;
+}
+
+.breakdown-row-new:last-child {
+  margin-bottom: 0;
+}
+
+.breakdown-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.breakdown-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--geeker-text);
+}
+
+.breakdown-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--md-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* 表格内排行徽章及群组名样式 */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.rank-top-1 {
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
+}
+
+.rank-top-2 {
+  background: linear-gradient(135deg, #cbd5e1 0%, #64748b 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.3);
+}
+
+.rank-top-3 {
+  background: linear-gradient(135deg, #fdba74 0%, #c2410c 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(194, 65, 12, 0.3);
+}
+
+.table-group-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.group-table-name {
+  font-weight: 600;
+  color: var(--geeker-text);
   font-size: 13px;
 }
 
-.metric-value {
-  margin-top: 8px;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--md-primary);
+.group-table-id {
+  font-size: 11px;
+  color: var(--geeker-text-secondary);
+}
+
+.group-table-members {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  color: var(--geeker-text);
+}
+
+.table-progress-wrap {
+  padding: 0 4px;
 }
 
 .content-band {
   min-width: 0;
-  padding: 18px;
-  border: 1px solid var(--geeker-border);
-  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
   background: #ffffff;
+  box-shadow: var(--shadow-premium);
 }
 
 .content-band h3 {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--geeker-text);
 }
 
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18px;
+  gap: 12px;
 }
 
 .section-head {
@@ -279,17 +761,20 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   min-width: 0;
 }
 
 .section-head h3 {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--geeker-text);
 }
 
 .section-head span {
-  color: #6b7280;
-  font-size: 13px;
+  color: var(--geeker-text-secondary);
+  font-size: 12px;
 }
 
 .section-head > div {
@@ -303,24 +788,34 @@ a {
 }
 
 .compact-metric {
-  padding: 12px;
-  border: 1px solid #edf0f4;
-  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 10px;
   background: #f8fafc;
+  transition: var(--transition-base);
+}
+
+.compact-metric:hover {
+  background: #f1f5f9;
+  border-color: rgba(226, 232, 240, 0.8);
 }
 
 .compact-metric span,
 .group-rank-row span {
   display: block;
-  color: #6b7280;
-  font-size: 13px;
+  color: var(--geeker-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .compact-metric strong {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 24px;
-  color: #173f37;
+  font-weight: 800;
+  color: var(--geeker-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.5px;
 }
 
 .breakdown-list,
@@ -333,9 +828,11 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
   background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  transition: var(--transition-base);
 }
 
 .breakdown-row strong {
@@ -420,8 +917,32 @@ a {
 }
 
 .json-cell {
+  display: block;
+  max-height: 80px;
+  overflow-y: auto;
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: break-all;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #475569;
+}
+
+.json-cell::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.json-cell::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 99px;
+}
+
+.json-cell::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .tag-gap {
@@ -454,28 +975,31 @@ a {
 }
 
 .drag-row-chosen td {
-  background: #f4fbf7 !important;
+  background: color-mix(in srgb, var(--md-primary) 6%, #ffffff) !important;
 }
 
 .drag-row-active {
-  box-shadow: 0 8px 24px rgba(17, 46, 38, 0.14);
+  box-shadow: 0 10px 25px -5px color-mix(in srgb, var(--md-primary) 20%, transparent);
 }
 
 .priority-pill {
   display: inline-flex;
   align-items: center;
   height: 24px;
-  padding: 0 8px;
-  border-radius: 6px;
-  background: #f1f5f3;
-  color: #28423a;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--md-primary) 8%, #ffffff);
+  color: var(--md-primary);
+  font-weight: 600;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+  border: 1px solid color-mix(in srgb, var(--md-primary) 15%, #ffffff);
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px 16px;
+  gap: 16px 20px;
 }
 
 .whitelist-input-group {
@@ -499,18 +1023,20 @@ a {
   place-items: center;
   padding: 24px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--md-primary) 72%, transparent), rgba(15, 22, 20, 0.42)),
+    linear-gradient(135deg, color-mix(in srgb, var(--md-primary) 50%, transparent), rgba(15, 23, 42, 0.6)),
     var(--auth-bg-image) center/cover;
 }
 
 .login-panel,
 .join-panel {
   width: min(440px, 100%);
-  padding: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 24px 80px rgba(9, 25, 21, 0.28);
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
 }
 
 .join-panel {
@@ -519,13 +1045,15 @@ a {
 
 .join-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--md-primary);
+  letter-spacing: -0.5px;
 }
 
 .join-meta {
   margin: 16px 0;
-  color: #5c6d66;
+  color: var(--geeker-text-secondary);
 }
 
 .group-selector {
@@ -541,24 +1069,7 @@ a {
   gap: 10px;
 }
 
-.group-selector-head {
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
 
-.group-selector-actions {
-  color: #6b7280;
-}
-
-.group-selector-count {
-  font-size: 13px;
-}
-
-.group-selector-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-}
 
 .captcha-element {
   min-height: 0;
@@ -574,23 +1085,127 @@ a {
   pointer-events: none;
 }
 
+/* Element Plus 核心全局重构 */
 .el-table {
   width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.el-table th.el-table__cell {
+  background-color: #f8fafc !important;
+  color: var(--geeker-text) !important;
+  font-weight: 600 !important;
+  height: 48px;
+}
+
+.el-table td.el-table__cell {
+  padding: 10px 0 !important;
+}
+
+.el-table .cell {
+  max-height: 96px; /* 约 3 行内容最大高度，防止大段文本或多 Tag 换行无限撑开单元格 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.el-table__row:hover > td.el-table__cell {
+  background-color: color-mix(in srgb, var(--md-primary) 5%, #ffffff) !important;
+}
+
+.el-table--border .el-table__cell {
+  border-right: 1px solid rgba(226, 232, 240, 0.5) !important;
+}
+
+.el-table td.el-table__cell,
+.el-table th.el-table__cell.is-leaf {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5) !important;
+}
+
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px #cbd5e1 inset !important; /* Slate-300 */
+  transition: var(--transition-fast) !important;
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px #94a3b8 inset !important;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--md-primary) inset, 0 0 0 3px color-mix(in srgb, var(--md-primary) 15%, transparent) !important;
+}
+
+.el-button {
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: var(--transition-fast) !important;
+}
+
+.el-button--primary:not(.is-plain) {
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--md-primary) 20%, transparent);
+}
+
+.el-button--primary:not(.is-plain):hover {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--md-primary) 32%, transparent);
+  transform: translateY(-1px);
+}
+
+.el-button--primary:not(.is-plain):active {
+  transform: translateY(0);
 }
 
 .el-dialog {
   max-width: calc(100vw - 24px);
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+}
+
+.el-dialog__header {
+  margin-right: 0 !important;
+  padding: 20px 24px 12px !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.el-dialog__title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--geeker-text) !important;
+}
+
+.el-dialog__body {
+  padding: 24px !important;
+}
+
+.el-dialog__footer {
+  padding: 16px 24px !important;
+  border-top: 1px solid #f1f5f9;
+  background-color: #f8fafc;
 }
 
 @media (max-width: 900px) {
   .geeker-layout {
     flex-direction: column;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .geeker-sider,
   .geeker-layout.is-collapsed .geeker-sider {
     width: 100%;
     min-height: auto;
+    height: auto !important;
+  }
+
+  .geeker-container {
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .geeker-logo {
@@ -625,7 +1240,9 @@ a {
   }
 
   .geeker-main {
-    padding: 14px;
+    padding: 14px !important;
+    overflow-y: visible !important;
+    height: auto !important;
   }
 
   .page-head {
@@ -748,4 +1365,276 @@ a {
   .content-band {
     padding: 12px;
   }
+}
+
+.drag-column .cell {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  padding: 0 !important;
+}
+
+/* 公告卡片网格系统 */
+.notice-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.notice-card {
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  border-radius: 12px !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  transition: var(--transition-base) !important;
+}
+
+.notice-card:hover {
+  box-shadow: var(--shadow-md) !important;
+  border-color: color-mix(in srgb, var(--md-primary) 15%, #e2e8f0) !important;
+}
+
+.notice-card .el-card__body {
+  padding: 14px !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.notice-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.notice-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--geeker-text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notice-group-tag {
+  flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notice-card-body {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+
+.notice-card-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notice-card-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 4px;
+}
+
+.notice-content-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #475569;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.notice-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.notice-time {
+  font-size: 11px;
+  color: var(--geeker-text-secondary);
+}
+
+/* Windows 资源管理器风格的文件夹网格 */
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.folder-card {
+  display: flex;
+  align-items: center;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.folder-card:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 20%, #e2e8f0);
+  background: color-mix(in srgb, var(--md-primary) 2%, #ffffff);
+  box-shadow: var(--shadow-md);
+}
+
+.folder-card:hover .folder-main-icon {
+  color: var(--md-primary-hover);
+}
+
+.folder-card:active {
+}
+
+.folder-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fef3c7;
+  display: grid;
+  place-items: center;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.folder-main-icon {
+  font-size: 24px;
+  color: #d97706;
+  transition: transform 0.2s ease;
+}
+
+.folder-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-name {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--geeker-text);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.folder-id {
+  font-size: 11px;
+  color: var(--geeker-text-secondary);
+}
+
+.folder-meta {
+  font-size: 10.5px;
+  color: var(--md-primary);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.folder-arrow {
+  font-size: 14px;
+  color: #cbd5e1;
+  margin-left: 8px;
+  transition: transform 0.2s ease;
+}
+
+.folder-card:hover .folder-arrow {
+  color: var(--md-primary);
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.folder-back-btn {
+  border-radius: 6px !important;
+}
+
+.folder-path {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.path-item.link {
+  color: var(--geeker-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.path-item.link:hover {
+  color: var(--md-primary);
+  text-decoration: underline;
+}
+
+.path-item.active {
+  color: var(--geeker-text);
+  font-weight: 700;
+}
+
+.path-separator {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.file-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.file-name-text {
+  font-weight: 500;
+  color: var(--geeker-text);
+}
+
+/* 文件浏览器 - 文件夹行特殊高亮 */
+.folder-row td {
+  background-color: #fffbeb !important;
+}
+
+.folder-row:hover td {
+  background-color: #fef3c7 !important;
+  cursor: pointer;
+}
+
+.text-muted {
+  color: var(--geeker-text-secondary);
 }

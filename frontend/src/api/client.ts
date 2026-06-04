@@ -62,6 +62,7 @@ export type MessageModerationRule = {
   group_id: number | null
   patterns: string[]
   cloud_review_enabled: boolean
+  ocr_enabled: boolean
   action: 'recall' | 'mute' | 'recall_and_mute'
   mute_duration_seconds: number
   note: string

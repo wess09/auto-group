@@ -77,6 +77,7 @@ class MessageModerationRule(SQLModel, table=True):
     group_id: int | None = Field(default=None, index=True)
     patterns: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     cloud_review_enabled: bool = False
+    ocr_enabled: bool = False
     action: MessageModerationAction = MessageModerationAction.recall
     mute_duration_seconds: int = 600
     note: str = ""

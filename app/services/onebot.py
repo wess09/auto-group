@@ -117,6 +117,33 @@ async def get_group_file_url(group_id: int, file_id: str, busid: int) -> Any:
     return await call_onebot("get_group_file_url", group_id=group_id, file_id=file_id, busid=busid)
 
 
+async def get_group_file_system_info(group_id: int) -> Any:
+    return await call_onebot("get_group_file_system_info", group_id=group_id)
+
+
+async def rename_group_file(
+    group_id: int, file_id: str, current_parent_directory: str, new_name: str
+) -> Any:
+    return await call_onebot(
+        "rename_group_file",
+        group_id=group_id,
+        file_id=file_id,
+        current_parent_directory=current_parent_directory,
+        new_name=new_name,
+    )
+
+
+async def rename_group_file_folder(
+    group_id: int, folder_id: str, new_folder_name: str
+) -> Any:
+    return await call_onebot(
+        "rename_group_file_folder",
+        group_id=group_id,
+        folder_id=folder_id,
+        new_folder_name=new_folder_name,
+    )
+
+
 async def send_group_message(group_id: int, message: str) -> Any:
     return await call_onebot("send_group_msg", group_id=group_id, message=message)
 

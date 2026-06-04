@@ -3,14 +3,15 @@
     <div class="page-head">
       <div>
         <h1 class="page-title">消息审查</h1>
-        <p class="page-subtitle">按群配置正则规则，可选择命中后交由腾讯云 AI 二次审核。</p>
+        <p class="page-subtitle">按群配置正则规则，支持 OCR 图片文字识别，可选择命中后交由腾讯云 AI 二次审核。</p>
       </div>
       <div class="toolbar">
         <el-button @click="load">刷新</el-button>
         <el-button type="primary" @click="openCreate">新增规则</el-button>
       </div>
     </div>
-    <div class="content-band cloud-config-band">
+    <div v-loading="loading" element-loading-text="正在加载审核配置与规则..." style="min-height: 400px;">
+      <div class="content-band cloud-config-band">
       <div class="section-head">
         <div>
           <h3>腾讯云审核配置</h3>
@@ -66,6 +67,13 @@
         <el-table-column label="禁言" width="120">
           <template #default="{ row }">{{ row.action === 'recall' ? '-' : `${row.mute_duration_seconds} 秒` }}</template>
         </el-table-column>
+        <el-table-column label="OCR" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.ocr_enabled ? 'success' : 'info'">
+              {{ row.ocr_enabled ? '开启' : '关闭' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="AI二审" width="100">
           <template #default="{ row }">
             <el-tag :type="row.cloud_review_enabled ? 'success' : 'info'">
@@ -98,6 +106,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </div>
     <el-dialog v-model="showModal" title="消息审查规则" width="min(720px, 96vw)">
       <el-form label-position="top">
@@ -107,6 +116,7 @@
           <el-form-item label="动作"><el-select v-model="form.action" :options="actionOptions" /></el-form-item>
           <el-form-item label="禁言秒数"><el-input-number v-model="form.mute_duration_seconds" :min="1" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
+          <el-form-item label="OCR 图片识别"><el-switch v-model="form.ocr_enabled" /></el-form-item>
           <el-form-item label="AI二次审核"><el-switch v-model="form.cloud_review_enabled" /></el-form-item>
         </div>
         <el-form-item label="正则表达式">
@@ -147,12 +157,14 @@ const cloudForm = reactive({
 })
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
+const loading = ref(true)
 const defaultForm = {
   name: '',
   enabled: true,
   group_id: null as number | null,
   patterns: [] as string[],
   cloud_review_enabled: false,
+  ocr_enabled: false,
   action: 'recall' as MessageModerationRule['action'],
   mute_duration_seconds: 600,
   note: ''
@@ -179,7 +191,14 @@ const actionLabels: Record<string, string> = {
   recall_and_mute: '撤回并禁言'
 }
 async function load() {
-  await Promise.all([loadRules(), loadCloudConfig()])
+  loading.value = true
+  try {
+    await Promise.all([loadRules(), loadCloudConfig()])
+  } catch (error: any) {
+    ElMessage.error('加载配置失败：' + (error.response?.data?.detail || error.message))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadRules() {

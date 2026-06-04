@@ -10,7 +10,7 @@
         <el-button type="primary" @click="openCreate">新增规则</el-button>
       </div>
     </div>
-    <div class="content-band">
+    <div class="content-band" v-loading="loading" element-loading-text="正在加载入群规则列表..." style="min-height: 200px;">
       <el-table :data="rules" border>
         <el-table-column prop="name" label="名称" min-width="150" />
         <el-table-column label="适用群" width="120">
@@ -74,6 +74,7 @@ import { api, type AnswerRule } from '../api/client'
 const rules = ref<AnswerRule[]>([])
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
+const loading = ref(true)
 const form = reactive<any>({
   name: '',
   enabled: true,
@@ -98,8 +99,15 @@ const logicOptions = [
   { label: '全部命中', value: 'all' }
 ]
 async function load() {
-  const { data } = await api.get('/admin/rules')
-  rules.value = data
+  loading.value = true
+  try {
+    const { data } = await api.get('/admin/rules')
+    rules.value = data
+  } catch (error: any) {
+    ElMessage.error('加载入群规则失败：' + (error.response?.data?.detail || error.message))
+  } finally {
+    loading.value = false
+  }
 }
 function openCreate() {
   editingId.value = null

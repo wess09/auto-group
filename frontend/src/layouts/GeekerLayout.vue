@@ -13,7 +13,21 @@
           router
           class="geeker-menu"
         >
-          <el-menu-item v-for="item in adminMenuItems" :key="item.path" :index="item.path">
+          <el-menu-item
+            v-for="item in adminMenuItems"
+            :key="item.path"
+            :index="item.path"
+            :style="collapsed ? {
+              padding: '0px',
+              width: '48px',
+              height: '46px',
+              lineHeight: '46px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              margin: '4px 12px'
+            } : {}"
+          >
             <el-icon><component :is="item.icon" /></el-icon>
             <template #title>{{ item.title }}</template>
           </el-menu-item>
@@ -32,15 +46,13 @@
             <el-breadcrumb-item>{{ currentTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <div class="geeker-header-actions">
-          <el-button text @click="goPublic">
-            <el-icon><Link /></el-icon>
-            公开入口
-          </el-button>
-          <el-button type="primary" plain @click="logout">
-            <el-icon><SwitchButton /></el-icon>
-            退出登录
-          </el-button>
+        <div class="geeker-header-actions" style="gap: 8px">
+          <el-tooltip content="公开入口" placement="bottom">
+            <el-button type="info" link :icon="Link" class="header-action-btn" @click="goPublic" />
+          </el-tooltip>
+          <el-tooltip content="退出登录" placement="bottom">
+            <el-button type="danger" link :icon="SwitchButton" class="header-action-btn" @click="logout" />
+          </el-tooltip>
         </div>
       </header>
 
@@ -106,3 +118,36 @@ function logout() {
   router.push(adminPath('login'))
 }
 </script>
+
+<style scoped>
+.header-action-btn {
+  font-size: 20px !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.header-action-btn:hover {
+  background-color: #f1f5f9 !important;
+  transform: scale(1.1) !important;
+}
+.header-action-btn:active {
+  transform: scale(0.95) !important;
+}
+.el-button.header-action-btn.el-button--info {
+  color: var(--geeker-text-secondary) !important;
+}
+.el-button.header-action-btn.el-button--info:hover {
+  color: var(--md-primary) !important;
+}
+.el-button.header-action-btn.el-button--danger {
+  color: var(--el-color-danger) !important;
+}
+</style>

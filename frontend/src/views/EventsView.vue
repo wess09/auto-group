@@ -7,7 +7,8 @@
       </div>
       <el-button @click="load">刷新</el-button>
     </div>
-    <div class="content-band" style="margin-bottom: 16px">
+    <div v-loading="loading" element-loading-text="正在加载事件与操作日志..." style="min-height: 450px;">
+      <div class="content-band" style="margin-bottom: 16px">
       <h3>加群申请</h3>
       <el-table :data="joins" border>
         <el-table-column prop="user_id" label="QQ" width="130" />
@@ -40,6 +41,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </div>
   </AdminLayout>
 </template>
@@ -52,16 +54,24 @@ import { api } from '../api/client'
 const joins = ref<any[]>([])
 const leaves = ref<any[]>([])
 const audits = ref<any[]>([])
+const loading = ref(true)
 
 async function load() {
-  const [joinRes, leaveRes, auditRes] = await Promise.all([
-    api.get('/admin/join-requests'),
-    api.get('/admin/leave-events'),
-    api.get('/admin/audit-logs')
-  ])
-  joins.value = joinRes.data
-  leaves.value = leaveRes.data
-  audits.value = auditRes.data
+  loading.value = true
+  try {
+    const [joinRes, leaveRes, auditRes] = await Promise.all([
+      api.get('/admin/join-requests'),
+      api.get('/admin/leave-events'),
+      api.get('/admin/audit-logs')
+    ])
+    joins.value = joinRes.data
+    leaves.value = leaveRes.data
+    audits.value = auditRes.data
+  } catch (error: any) {
+    console.error('加载日志失败', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(load)
