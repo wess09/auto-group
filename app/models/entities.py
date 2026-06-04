@@ -76,9 +76,24 @@ class MessageModerationRule(SQLModel, table=True):
     enabled: bool = True
     group_id: int | None = Field(default=None, index=True)
     patterns: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    cloud_review_enabled: bool = False
     action: MessageModerationAction = MessageModerationAction.recall
     mute_duration_seconds: int = 600
     note: str = ""
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class TencentCloudTmsConfig(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "tencentcloud_tms_config"
+
+    id: int | None = Field(default=None, primary_key=True)
+    secret_id: str = ""
+    secret_key: str = ""
+    region: str = "ap-guangzhou"
+    biz_type: str = "TencentCloudDefault"
+    source_language: str = "zh"
+    timeout_seconds: float = 5.0
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
 

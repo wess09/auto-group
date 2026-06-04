@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import Iterator
 
+from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, col, create_engine, select
 
 from app.core.config import get_settings
 from app.core.security import hash_password
-from app.models import Admin
+from app.models import Admin, TencentCloudTmsConfig
 
 
 settings = get_settings()
@@ -21,9 +22,32 @@ engine = create_engine(
 )
 
 
+def _upgrade_sqlite_schema() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+    inspector = inspect(engine)
+    if not inspector.has_table("message_moderation_rules"):
+        return
+    columns = {
+        column["name"] for column in inspector.get_columns("message_moderation_rules")
+    }
+    with engine.begin() as connection:
+        if "cloud_review_enabled" not in columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE message_moderation_rules "
+                    "ADD COLUMN cloud_review_enabled BOOLEAN NOT NULL DEFAULT 0"
+                )
+            )
+
+
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    _upgrade_sqlite_schema()
     with Session(engine) as session:
+        config = session.exec(select(TencentCloudTmsConfig)).first()
+        if not config:
+            session.add(TencentCloudTmsConfig())
         admin = session.exec(
             select(Admin).where(col(Admin.username) == settings.admin_username)
         ).first()
@@ -34,7 +58,7 @@ def init_db() -> None:
                     password_hash=hash_password(settings.admin_password),
                 )
             )
-            session.commit()
+        session.commit()
 
 
 def get_session() -> Iterator[Session]:

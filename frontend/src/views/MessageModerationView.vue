@@ -3,12 +3,54 @@
     <div class="page-head">
       <div>
         <h1 class="page-title">消息审查</h1>
-        <p class="page-subtitle">按群配置正则规则，命中后自动撤回、禁言或同时处理。</p>
+        <p class="page-subtitle">按群配置正则规则，可选择命中后交由腾讯云 AI 二次审核。</p>
       </div>
       <div class="toolbar">
         <el-button @click="load">刷新</el-button>
         <el-button type="primary" @click="openCreate">新增规则</el-button>
       </div>
+    </div>
+    <div class="content-band cloud-config-band">
+      <div class="section-head">
+        <div>
+          <h3>腾讯云审核配置</h3>
+          <span>规则开启 AI 二审后使用这组 TMS 配置。</span>
+        </div>
+        <el-tag :type="cloudConfig.secret_key_configured ? 'success' : 'warning'">
+          {{ cloudConfig.secret_key_configured ? '密钥已配置' : '密钥未配置' }}
+        </el-tag>
+      </div>
+      <el-form label-position="top">
+        <div class="form-grid">
+          <el-form-item label="SecretId">
+            <el-input v-model="cloudForm.secret_id" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="SecretKey">
+            <el-input
+              v-model="cloudForm.secret_key"
+              autocomplete="off"
+              show-password
+              :placeholder="cloudConfig.secret_key_configured ? '留空则保留已保存密钥' : '请输入 SecretKey'"
+              type="password"
+            />
+          </el-form-item>
+          <el-form-item label="地域">
+            <el-input v-model="cloudForm.region" />
+          </el-form-item>
+          <el-form-item label="策略编号 BizType">
+            <el-input v-model="cloudForm.biz_type" />
+          </el-form-item>
+          <el-form-item label="语言">
+            <el-select v-model="cloudForm.source_language" :options="languageOptions" />
+          </el-form-item>
+          <el-form-item label="超时秒数">
+            <el-input-number v-model="cloudForm.timeout_seconds" :min="1" :precision="1" />
+          </el-form-item>
+        </div>
+        <div class="toolbar">
+          <el-button type="primary" @click="saveCloudConfig">保存云审核配置</el-button>
+        </div>
+      </el-form>
     </div>
     <div class="content-band">
       <el-table :data="rules" border>
@@ -23,6 +65,13 @@
         </el-table-column>
         <el-table-column label="禁言" width="120">
           <template #default="{ row }">{{ row.action === 'recall' ? '-' : `${row.mute_duration_seconds} 秒` }}</template>
+        </el-table-column>
+        <el-table-column label="AI二审" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.cloud_review_enabled ? 'success' : 'info'">
+              {{ row.cloud_review_enabled ? '开启' : '关闭' }}
+            </el-tag>
+          </template>
         </el-table-column>
         <el-table-column label="正则" min-width="240">
           <template #default="{ row }">
@@ -58,6 +107,7 @@
           <el-form-item label="动作"><el-select v-model="form.action" :options="actionOptions" /></el-form-item>
           <el-form-item label="禁言秒数"><el-input-number v-model="form.mute_duration_seconds" :min="1" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
+          <el-form-item label="AI二次审核"><el-switch v-model="form.cloud_review_enabled" /></el-form-item>
         </div>
         <el-form-item label="正则表达式">
           <el-input v-model="patternsText" type="textarea" placeholder="每行一个正则表达式" />
@@ -76,9 +126,25 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminLayout from '../components/AdminLayout.vue'
-import { api, type MessageModerationRule } from '../api/client'
+import { api, type MessageModerationRule, type TencentCloudTmsConfig } from '../api/client'
 
 const rules = ref<MessageModerationRule[]>([])
+const cloudConfig = reactive<TencentCloudTmsConfig>({
+  secret_id: '',
+  secret_key_configured: false,
+  region: 'ap-guangzhou',
+  biz_type: 'TencentCloudDefault',
+  source_language: 'zh',
+  timeout_seconds: 5
+})
+const cloudForm = reactive({
+  secret_id: '',
+  secret_key: '',
+  region: 'ap-guangzhou',
+  biz_type: 'TencentCloudDefault',
+  source_language: 'zh',
+  timeout_seconds: 5
+})
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
 const defaultForm = {
@@ -86,6 +152,7 @@ const defaultForm = {
   enabled: true,
   group_id: null as number | null,
   patterns: [] as string[],
+  cloud_review_enabled: false,
   action: 'recall' as MessageModerationRule['action'],
   mute_duration_seconds: 600,
   note: ''
@@ -102,14 +169,42 @@ const actionOptions = [
   { label: '禁言', value: 'mute' },
   { label: '撤回并禁言', value: 'recall_and_mute' }
 ]
+const languageOptions = [
+  { label: '中文', value: 'zh' },
+  { label: '英文', value: 'en' }
+]
 const actionLabels: Record<string, string> = {
   recall: '撤回',
   mute: '禁言',
   recall_and_mute: '撤回并禁言'
 }
 async function load() {
+  await Promise.all([loadRules(), loadCloudConfig()])
+}
+
+async function loadRules() {
   const { data } = await api.get('/admin/message-moderation-rules')
   rules.value = data
+}
+
+async function loadCloudConfig() {
+  const { data } = await api.get('/admin/message-moderation-cloud-config')
+  Object.assign(cloudConfig, data)
+  Object.assign(cloudForm, {
+    secret_id: data.secret_id,
+    secret_key: '',
+    region: data.region,
+    biz_type: data.biz_type,
+    source_language: data.source_language,
+    timeout_seconds: data.timeout_seconds
+  })
+}
+
+async function saveCloudConfig() {
+  const { data } = await api.put('/admin/message-moderation-cloud-config', cloudForm)
+  Object.assign(cloudConfig, data)
+  cloudForm.secret_key = ''
+  ElMessage.success('云审核配置已保存')
 }
 
 function openCreate() {
@@ -132,14 +227,20 @@ async function save() {
   }
   ElMessage.success('已保存')
   showModal.value = false
-  load()
+  loadRules()
 }
 
 async function remove(id: number) {
   await api.delete(`/admin/message-moderation-rules/${id}`)
   ElMessage.success('已删除')
-  load()
+  loadRules()
 }
 
 onMounted(load)
 </script>
+
+<style scoped>
+.cloud-config-band {
+  margin-bottom: 16px;
+}
+</style>

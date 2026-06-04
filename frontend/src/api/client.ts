@@ -61,9 +61,19 @@ export type MessageModerationRule = {
   enabled: boolean
   group_id: number | null
   patterns: string[]
+  cloud_review_enabled: boolean
   action: 'recall' | 'mute' | 'recall_and_mute'
   mute_duration_seconds: number
   note: string
+}
+
+export type TencentCloudTmsConfig = {
+  secret_id: string
+  secret_key_configured: boolean
+  region: string
+  biz_type: string
+  source_language: string
+  timeout_seconds: number
 }
 
 export type JoinBlacklistItem = {

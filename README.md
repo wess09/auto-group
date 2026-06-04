@@ -11,6 +11,7 @@ NoneBot2 + LLBot/LLOneBot 群管理与群运营后台。
 - 公告管理：同步公告、批量发送、删除公告。
 - 群文件管理：上传一份文件，选择多个群批量分发，同步/删除群文件。
 - 精华管理：发送指定内容后自动设精，支持同步和移出精华。
+- 消息审查：正则命中后自动处理，可按规则开启腾讯云文本内容安全二次审核。
 - 公开分流页：`#/join` 自动展示当前推荐入群链接。
 
 ## 环境
@@ -47,6 +48,10 @@ ws://127.0.0.1:8080/onebot/v11/ws
 如果日志出现 `keepalive ping timeout`，可以在 `.env` 调大 `WS_PING_TIMEOUT_SECONDS`，或将 `WS_PING_INTERVAL_SECONDS=0` 关闭服务端 WebSocket ping。
 
 后台账号密码来自 `.env`，首次部署前请修改 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`。
+
+## 腾讯云文本审核
+
+消息审查规则默认仍是正则命中后直接执行动作。若在规则里开启“AI二次审核”，则正则命中后会调用腾讯云 TMS `TextModeration`，只有返回 `Block` 或 `Review` 时才撤回/禁言，返回 `Pass` 时不处理。腾讯云 `SecretId`、`SecretKey`、地域和策略编号可在后台“消息审查”页配置，`SecretKey` 保存后不会回显明文。
 
 ## 自定义后台入口
 

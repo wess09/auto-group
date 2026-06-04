@@ -16,6 +16,7 @@ from app.models.entities import (
     MemberActivityStat,
     MessageModerationRule,
     ManagedGroup,
+    TencentCloudTmsConfig,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "MemberActivityStat",
     "MessageModerationRule",
     "ManagedGroup",
+    "TencentCloudTmsConfig",
 ]

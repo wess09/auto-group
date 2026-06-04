@@ -47,6 +47,8 @@ from app.schemas.admin import (
     MessageModerationRulePatch,
     NoticeDeleteIn,
     NoticeSendIn,
+    TencentCloudTmsConfigIn,
+    TencentCloudTmsConfigOut,
     UploadOut,
 )
 from app.services import onebot
@@ -64,6 +66,11 @@ from app.services.sync import (
     sync_group_files,
     sync_group_info,
     sync_group_notices,
+)
+from app.services.tencentcloud_tms_config import (
+    get_tms_config,
+    tms_config_out,
+    update_tms_config,
 )
 
 
@@ -516,6 +523,38 @@ def delete_message_moderation_rule(
     session.commit()
     add_audit(session, "message_moderation_rule.delete", str(rule_id), {}, admin)
     return GenericResult(ok=True, message="已删除")
+
+
+@router.get("/message-moderation-cloud-config", response_model=TencentCloudTmsConfigOut)
+def get_message_moderation_cloud_config(
+    session: SessionDep, admin: AdminDep
+) -> TencentCloudTmsConfigOut:
+    del admin
+    return tms_config_out(get_tms_config(session))
+
+
+@router.put("/message-moderation-cloud-config", response_model=TencentCloudTmsConfigOut)
+def update_message_moderation_cloud_config(
+    payload: TencentCloudTmsConfigIn,
+    session: SessionDep,
+    admin: AdminDep,
+) -> TencentCloudTmsConfigOut:
+    config = update_tms_config(session, payload)
+    add_audit(
+        session,
+        "message_moderation_cloud_config.update",
+        str(config.id),
+        {
+            "secret_id": config.secret_id,
+            "secret_key_configured": bool(config.secret_key),
+            "region": config.region,
+            "biz_type": config.biz_type,
+            "source_language": config.source_language,
+            "timeout_seconds": config.timeout_seconds,
+        },
+        admin,
+    )
+    return tms_config_out(config)
 
 
 @router.get("/join-requests")

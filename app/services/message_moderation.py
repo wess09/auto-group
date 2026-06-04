@@ -5,7 +5,9 @@ from sqlmodel import Session, col, select
 
 from app.models import MessageModerationRule
 from app.models.entities import MessageModerationAction
+from app.services import cloud_text_moderation
 from app.services import onebot
+from app.services.tencentcloud_tms_config import get_tms_config
 
 
 class GroupMessageLike(Protocol):
@@ -76,5 +78,16 @@ async def moderate_group_message(session: Session, event: GroupMessageLike) -> M
     rule = find_matching_moderation_rule(session, event.group_id, message_text)
     if not rule:
         return None
+    if rule.cloud_review_enabled:
+        config = get_tms_config(session)
+        decision = await cloud_text_moderation.moderate_text(
+            config,
+            message_text,
+            group_id=event.group_id,
+            user_id=event.user_id,
+            message_id=event.message_id,
+        )
+        if not decision.should_trigger:
+            return None
     await apply_moderation_action(rule, event.group_id, event.user_id, event.message_id)
     return rule

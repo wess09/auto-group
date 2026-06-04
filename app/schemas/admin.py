@@ -64,6 +64,7 @@ class MessageModerationRuleIn(BaseModel):
     enabled: bool = True
     group_id: int | None = None
     patterns: list[str] = Field(default_factory=list)
+    cloud_review_enabled: bool = False
     action: MessageModerationAction = MessageModerationAction.recall
     mute_duration_seconds: int = Field(default=600, ge=1)
     note: str = ""
@@ -74,9 +75,28 @@ class MessageModerationRulePatch(BaseModel):
     enabled: bool | None = None
     group_id: int | None = None
     patterns: list[str] | None = None
+    cloud_review_enabled: bool | None = None
     action: MessageModerationAction | None = None
     mute_duration_seconds: int | None = Field(default=None, ge=1)
     note: str | None = None
+
+
+class TencentCloudTmsConfigIn(BaseModel):
+    secret_id: str = ""
+    secret_key: str = ""
+    region: str = "ap-guangzhou"
+    biz_type: str = "TencentCloudDefault"
+    source_language: str = "zh"
+    timeout_seconds: float = Field(default=5.0, ge=1)
+
+
+class TencentCloudTmsConfigOut(BaseModel):
+    secret_id: str = ""
+    secret_key_configured: bool = False
+    region: str = "ap-guangzhou"
+    biz_type: str = "TencentCloudDefault"
+    source_language: str = "zh"
+    timeout_seconds: float = 5.0
 
 
 class NoticeSendIn(BaseModel):
