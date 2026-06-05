@@ -45,7 +45,7 @@
       </el-form>
       <template #footer>
         <el-button @click="showModal = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
   </AdminLayout>
@@ -55,13 +55,14 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminLayout from '../components/AdminLayout.vue'
-import { api, type JoinBlacklistItem } from '../api/client'
+import { api, getApiErrorMessage, type JoinBlacklistItem } from '../api/client'
 
 const items = ref<JoinBlacklistItem[]>([])
 const showModal = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
 const loading = ref(true)
+const saving = ref(false)
 const defaultForm = {
   user_id: 0,
   enabled: true,
@@ -76,7 +77,7 @@ async function load() {
     const { data } = await api.get('/admin/join-blacklist')
     items.value = data
   } catch (error: any) {
-    ElMessage.error('加载黑名单失败：' + (error.response?.data?.detail || error.message))
+    ElMessage.error('加载黑名单失败：' + getApiErrorMessage(error))
   } finally {
     loading.value = false
   }
@@ -97,25 +98,41 @@ function openEdit(row: JoinBlacklistItem) {
 }
 
 async function save() {
-  if (editing.value) {
-    await api.patch(`/admin/join-blacklist/${editingId.value}`, form)
-  } else {
-    await api.post('/admin/join-blacklist', form)
+  saving.value = true
+  try {
+    if (editing.value) {
+      await api.patch(`/admin/join-blacklist/${editingId.value}`, form)
+    } else {
+      await api.post('/admin/join-blacklist', form)
+    }
+    ElMessage.success('已保存')
+    showModal.value = false
+    load()
+  } catch (error) {
+    ElMessage.error('保存黑名单失败：' + getApiErrorMessage(error))
+  } finally {
+    saving.value = false
   }
-  ElMessage.success('已保存')
-  showModal.value = false
-  load()
 }
 
 async function toggle(row: JoinBlacklistItem, enabled: boolean) {
-  await api.patch(`/admin/join-blacklist/${row.id}`, { enabled })
-  row.enabled = enabled
+  try {
+    await api.patch(`/admin/join-blacklist/${row.id}`, { enabled })
+    row.enabled = enabled
+  } catch (error) {
+    row.enabled = !enabled
+    ElMessage.error('更新黑名单失败：' + getApiErrorMessage(error))
+  }
 }
 
 async function remove(id: number) {
-  await api.delete(`/admin/join-blacklist/${id}`)
-  ElMessage.success('已删除')
-  load()
+  try {
+    await api.delete(`/admin/join-blacklist/${id}`)
+    ElMessage.success('已删除')
+    load()
+  } catch (error) {
+    ElMessage.error('删除黑名单失败：' + getApiErrorMessage(error))
+  }
 }
 
 onMounted(load)

@@ -11,6 +11,39 @@ export const api = axios.create({
   timeout: 30000
 })
 
+function stringifyApiDetail(detail: unknown): string {
+  if (typeof detail === 'string') {
+    return detail
+  }
+  if (Array.isArray(detail)) {
+    return detail.map((item) => stringifyApiDetail(item)).filter(Boolean).join('；')
+  }
+  if (detail && typeof detail === 'object') {
+    const message = (detail as { msg?: unknown; message?: unknown }).msg ?? (detail as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+    try {
+      return JSON.stringify(detail)
+    } catch {
+      return String(detail)
+    }
+  }
+  return ''
+}
+
+export function getApiErrorMessage(error: unknown, fallback = '请求失败') {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { detail?: unknown; message?: unknown } | undefined
+    const message = stringifyApiDetail(data?.detail) || stringifyApiDetail(data?.message)
+    return message || error.message || fallback
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return fallback
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
