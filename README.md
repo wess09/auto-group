@@ -18,7 +18,7 @@ NoneBot2 + LLBot/LLOneBot 群管理与群运营后台。
 
 - Python 3.10+
 - uv
-- Node.js 20+
+- Node.js 22.12+ 或更新的 LTS 版本
 - LLBot/LLOneBot，使用 OneBot v11 反向 WebSocket
 
 ## 后端启动
@@ -93,11 +93,11 @@ npm run dev
 本地开发时建议把 `frontend/.env.local` 改成：
 
 ```text
-VITE_API_BASE_URL=http://127.0.0.1:8080/api
+VITE_API_BASE_URL=/api
 VITE_ADMIN_ROUTE_PREFIX=/manage-a8f3c2
 ```
 
-前端开发地址默认为 `http://127.0.0.1:5173`。
+前端开发地址默认为 `http://127.0.0.1:5173`。Vite 将 `/api` 的 HTTP 和 WebSocket 请求代理到 `127.0.0.1:8080`。
 
 ## CDN 构建
 
@@ -140,3 +140,62 @@ LOGIN_RATE_LIMIT_LOCK_SECONDS=900
 后端登录接口默认启用失败限速：同一账号或同一客户端 IP 在窗口期内失败次数达到阈值后，会返回 `429` 并暂时拒绝继续尝试。公网部署时还应在防火墙或反代层限制源站只接受 ESA/CDN 回源，避免攻击者绕过边缘验证码直接打源站。
 
 如果你临时想让后端直接托管 `frontend/dist`，设置 `FRONTEND_STATIC_ENABLED=true` 后重新启动后端即可。
+
+## MD3 后台与管理 WebSocket
+
+后台使用 Vuetify 4.2.4 的官方 MD3 蓝图，统一使用 `#6750A4` 种子色生成色彩角色，支持浅色、深色及跟随系统。主题选择保存在浏览器本地；页面标签保留查询状态，只挂载当前页面。路由和图表按需加载，日志只读取当前标签，文件只读取当前群的当前目录。
+
+管理查询、增删改和任务通过 `/api/admin/ws` 通信。HTTP 保留 `/api/auth/login`、`/api/admin/uploads` 与 `/api/public/recommended-group`；OneBot 的 `/onebot/v11/ws` 不变。**旧 HTTP 管理接口已替换，升级时需同时发布后端和新的前端构建。** 数据库启动时自动新增任务表及分页索引，保留现有业务数据。
+
+生产构建会把 `VITE_API_BASE_URL=https://bot.example.com/api` 推导为 `wss://bot.example.com/api/admin/ws`。若 WS 使用独立域名或路径，可设置完整地址：
+
+```text
+VITE_WS_BASE_URL=wss://socket.example.com/api/admin/ws
+```
+
+浏览器的 Origin 必须匹配后端 `CORS_ORIGINS`（包括协议和端口）；CDN 域名应列在其中。HTTPS 页面应使用 WSS。运行一个 NoneBot 进程即可，任务执行与订阅广播共享该进程，无需 Redis。
+
+Nginx HTTPS 虚拟主机内的转发示例：
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+    proxy_buffering off;
+}
+```
+
+上游 CDN/网关也需开启 WebSocket 转发并保留 Origin。浏览器每 20 秒发送应用心跳。Upgrade 转发和空闲超时说明见 [Nginx 官方文档](https://nginx.org/en/docs/http/websocket.html)。CDN 可长期缓存带哈希的 `assets/*`，`index.html` 应使用短缓存或重新验证，便于同步更新前后端。
+
+同步、公告、精华、文件操作与去重会先返回持久化任务编号。离开页面后任务继续执行，可在“后台任务”查看进度、逐群结果和分页操作明细。服务重启后，未完成任务标记为中断，需要核实外部操作结果后再次提交；发送、踢人等操作不会自动重放。去重仍须先生成完整预览，再明确确认执行。
+
+完整方法、分页、订阅和任务恢复约定见 [管理 WS 协议](docs/admin-ws.md)。
+
+## 验证
+
+```powershell
+uv run ruff check app tests scripts
+uv run pytest -q
+Set-Location frontend
+npm ci
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+浏览器测试使用单独的生产构建、临时数据库与模拟 OneBot，自动启动 `8080` 与 `5173` 两个测试服务，需保证这两个端口空闲。测试数据包含 1 万条日志；后端测试另覆盖 1 万条去重明细、提交后通知、任务重复提交与重启中断。视觉截图保存在 `frontend/test-results/`。
+
+资源字段变更后，重新生成 TypeScript 契约：
+
+```powershell
+uv run python scripts/generate_rpc_types.py
+Set-Location frontend
+npx prettier --write src/api/generated.ts
+```

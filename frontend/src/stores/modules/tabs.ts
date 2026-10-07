@@ -8,7 +8,7 @@ export type WorkTab = {
 
 export const useTabsStore = defineStore('geeker-tabs', {
   state: () => ({
-    tabs: [] as WorkTab[]
+    tabs: [] as WorkTab[],
   }),
   actions: {
     addTab(tab: WorkTab) {
@@ -18,6 +18,6 @@ export const useTabsStore = defineStore('geeker-tabs', {
     removeTab(path: string) {
       const next = this.tabs.filter((item) => item.affix || item.path !== path)
       this.tabs = next.length ? next : this.tabs.filter((item) => item.affix)
-    }
-  }
+    },
+  },
 })

@@ -1,119 +1,47 @@
 import axios from 'axios'
 import { adminPath } from '../adminRoute'
-
-function apiBaseUrl() {
-  const value = import.meta.env.VITE_API_BASE_URL || '/api'
-  return value.replace(/\/+$/, '')
-}
+import { SocketClient, websocketUrl } from './socket'
 
 export const api = axios.create({
-  baseURL: apiBaseUrl(),
-  timeout: 30000
+  baseURL: (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, ''),
+  timeout: 30000,
 })
-
-function stringifyApiDetail(detail: unknown): string {
-  if (typeof detail === 'string') {
-    return detail
-  }
-  if (Array.isArray(detail)) {
-    return detail.map((item) => stringifyApiDetail(item)).filter(Boolean).join('；')
-  }
-  if (detail && typeof detail === 'object') {
-    const message = (detail as { msg?: unknown; message?: unknown }).msg ?? (detail as { message?: unknown }).message
-    if (typeof message === 'string') {
-      return message
-    }
-    try {
-      return JSON.stringify(detail)
-    } catch {
-      return String(detail)
-    }
-  }
-  return ''
-}
-
-export function getApiErrorMessage(error: unknown, fallback = '请求失败') {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { detail?: unknown; message?: unknown } | undefined
-    const message = stringifyApiDetail(data?.detail) || stringifyApiDetail(data?.message)
-    return message || error.message || fallback
-  }
-  if (error instanceof Error) {
-    return error.message
-  }
-  return fallback
-}
-
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
-
+export const socket = new SocketClient(
+  () =>
+    websocketUrl(
+      import.meta.env.VITE_API_BASE_URL || '/api',
+      import.meta.env.VITE_WS_BASE_URL,
+      location.href,
+    ),
+  () => localStorage.getItem('token') || '',
+)
+export function getApiErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail
+    return typeof detail === 'string' ? detail : error.message
+  }
+  return error instanceof Error ? error.message : '请求失败'
+}
+export function expireLogin() {
+  socket.close()
+  localStorage.removeItem('token')
+  window.dispatchEvent(new Event('auth-expired'))
+  location.hash = adminPath('login')
+}
+socket.onAuthExpired = expireLogin
+window.addEventListener('storage', (event) => {
+  if (event.key === 'token' && !event.newValue) expireLogin()
+})
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      if (location.hash !== `#${adminPath('login')}`) {
-        location.hash = adminPath('login')
-      }
-    }
+    if (error.response?.status === 401 && !String(error.config?.url).includes('/auth/login'))
+      expireLogin()
     return Promise.reject(error)
-  }
+  },
 )
-
-export type ManagedGroup = {
-  id: number
-  group_id: number
-  name: string
-  priority: number
-  enabled: boolean
-  max_members: number
-  current_members: number
-  join_url: string
-  redirect_message_template: string
-  note: string
-}
-
-export type AnswerRule = {
-  id: number
-  name: string
-  enabled: boolean
-  group_id: number | null
-  match_mode: 'contains' | 'exact' | 'regex'
-  logic_mode: 'any' | 'all'
-  patterns: string[]
-}
-
-export type MessageModerationRule = {
-  id: number
-  name: string
-  enabled: boolean
-  group_id: number | null
-  patterns: string[]
-  cloud_review_enabled: boolean
-  ocr_enabled: boolean
-  action: 'recall' | 'mute' | 'recall_and_mute'
-  mute_duration_seconds: number
-  note: string
-}
-
-export type TencentCloudTmsConfig = {
-  secret_id: string
-  secret_key_configured: boolean
-  region: string
-  biz_type: string
-  source_language: string
-  timeout_seconds: number
-}
-
-export type JoinBlacklistItem = {
-  id: number
-  user_id: number
-  enabled: boolean
-  reason: string
-  note: string
-}

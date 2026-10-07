@@ -1,82 +1,61 @@
-export const authBackgroundUrl = 'https://api.yppp.net/api.php'
+import {
+  argbFromHex,
+  hexFromArgb,
+  Hct,
+  MaterialDynamicColors,
+  SchemeTonalSpot,
+} from '@material/material-color-utilities'
+import { ref } from 'vue'
 
-const fallbackColors = {
-  primary: '#2f6f62',
-  primaryHover: '#4b8375',
-  primaryPressed: '#25574d',
-  onPrimary: '#ffffff',
-  surface: '#fbfdf9',
-  onSurface: '#191c1a',
-  outline: '#c0c9c3',
-  secondary: '#4f635b',
-  scrim: '#000000'
-}
+export type ThemeMode = 'system' | 'light' | 'dark'
+const saved = localStorage.getItem('md3.theme_mode')
+export const themeMode = ref<ThemeMode>(saved === 'light' || saved === 'dark' ? saved : 'system')
+export const systemDark = ref(matchMedia('(prefers-color-scheme: dark)').matches)
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+  systemDark.value = event.matches
+})
 
-export type DynamicTheme = {
-  colors: ThemeColors
-}
-
-type ThemeColors = typeof fallbackColors
-
-export function createDynamicTheme(colors: ThemeColors): DynamicTheme {
-  applyCssVars(colors)
+export function createMaterialTheme(dark: boolean) {
+  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex('#6750A4')), dark, 0)
+  const roles = new MaterialDynamicColors()
+  const colors = {
+    primary: roles.primary(),
+    'on-primary': roles.onPrimary(),
+    'primary-container': roles.primaryContainer(),
+    'on-primary-container': roles.onPrimaryContainer(),
+    secondary: roles.secondary(),
+    'on-secondary': roles.onSecondary(),
+    'secondary-container': roles.secondaryContainer(),
+    'on-secondary-container': roles.onSecondaryContainer(),
+    tertiary: roles.tertiary(),
+    'on-tertiary': roles.onTertiary(),
+    'tertiary-container': roles.tertiaryContainer(),
+    'on-tertiary-container': roles.onTertiaryContainer(),
+    background: roles.surface(),
+    'on-background': roles.onSurface(),
+    surface: roles.surface(),
+    'on-surface': roles.onSurface(),
+    'surface-variant': roles.surfaceVariant(),
+    'on-surface-variant': roles.onSurfaceVariant(),
+    'surface-container-lowest': roles.surfaceContainerLowest(),
+    'surface-container-low': roles.surfaceContainerLow(),
+    'surface-container': roles.surfaceContainer(),
+    'surface-container-high': roles.surfaceContainerHigh(),
+    'surface-container-highest': roles.surfaceContainerHighest(),
+    outline: roles.outline(),
+    'outline-variant': roles.outlineVariant(),
+    error: roles.error(),
+    'on-error': roles.onError(),
+    'error-container': roles.errorContainer(),
+    'on-error-container': roles.onErrorContainer(),
+    'inverse-surface': roles.inverseSurface(),
+    'inverse-on-surface': roles.inverseOnSurface(),
+    'inverse-primary': roles.inversePrimary(),
+  }
   return {
-    colors
+    dark,
+    colors: Object.fromEntries(
+      Object.entries(colors).map(([key, color]) => [key, hexFromArgb(color.getArgb(scheme))]),
+    ),
   }
-}
-
-export function fallbackDynamicTheme() {
-  return createDynamicTheme(fallbackColors)
-}
-
-export async function themeFromBackgroundImage() {
-  try {
-    const { hexFromArgb, sourceColorFromImage, themeFromSourceColor } = await import(
-      '@material/material-color-utilities'
-    )
-    const image = await loadImage(authBackgroundUrl)
-    const sourceArgb = await sourceColorFromImage(image)
-    const scheme = themeFromSourceColor(sourceArgb).schemes.light
-    return createDynamicTheme({
-      primary: hexFromArgb(scheme.primary),
-      primaryHover: hexFromArgb(scheme.primaryContainer),
-      primaryPressed: hexFromArgb(scheme.tertiary),
-      onPrimary: hexFromArgb(scheme.onPrimary),
-      surface: hexFromArgb(scheme.surface),
-      onSurface: hexFromArgb(scheme.onSurface),
-      outline: hexFromArgb(scheme.outlineVariant),
-      secondary: hexFromArgb(scheme.secondary),
-      scrim: hexFromArgb(scheme.scrim)
-    })
-  } catch {
-    return fallbackDynamicTheme()
-  }
-}
-
-function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image()
-    image.crossOrigin = 'anonymous'
-    image.decoding = 'async'
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Background image failed to load'))
-    image.src = src
-  })
-}
-
-function applyCssVars(colors: ThemeColors) {
-  const style = document.documentElement.style
-  style.setProperty('--md-primary', colors.primary)
-  style.setProperty('--md-primary-hover', colors.primaryHover)
-  style.setProperty('--md-primary-pressed', colors.primaryPressed)
-  style.setProperty('--md-on-primary', colors.onPrimary)
-  style.setProperty('--md-surface', colors.surface)
-  style.setProperty('--md-on-surface', colors.onSurface)
-  style.setProperty('--md-outline', colors.outline)
-  style.setProperty('--md-secondary', colors.secondary)
-  style.setProperty('--md-scrim', colors.scrim)
-  style.setProperty('--el-color-primary', colors.primary)
-  style.setProperty('--el-color-primary-light-3', colors.primaryHover)
-  style.setProperty('--el-color-primary-dark-2', colors.primaryPressed)
-  style.setProperty('--el-border-radius-base', '8px')
 }

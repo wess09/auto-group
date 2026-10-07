@@ -1,5 +1,3 @@
 <template>
-  <div class="admin-main">
-    <slot />
-  </div>
+  <section class="page-container"><slot /></section>
 </template>

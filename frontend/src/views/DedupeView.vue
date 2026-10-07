@@ -1,280 +1,157 @@
 <template>
-  <AdminLayout>
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">一键去重</h1>
-        <p class="page-subtitle">实时拉取群成员，预览确认后再踢出低优先级重复成员。</p>
-      </div>
-      <div class="toolbar">
-        <el-button type="primary" :loading="previewRunning" @click="preview">实时生成预览</el-button>
-        <el-button
-          type="danger"
-          :loading="executeRunning"
-          :disabled="!canExecute"
-          @click="execute"
-        >
-          确认踢出
-        </el-button>
-      </div>
-    </div>
-
-    <div class="dashboard-grid" style="margin-bottom: 18px">
-      <div class="content-band">
-        <div class="section-head">
-          <div>
-            <h3>任务进度</h3>
-            <span>{{ phaseText }}</span>
-          </div>
-          <el-tag :type="statusType">{{ jobStatus }}</el-tag>
+  <ResourceEditor v-if="tab === 'whitelist'" resource="whitelist">
+    <template #header><v-btn variant="tonal" @click="tab = 'preview'">返回去重</v-btn></template>
+  </ResourceEditor>
+  <AdminLayout v-else>
+    <PageHeader
+      title="一键去重"
+      subtitle="实时拉取群成员，保留优先级最高的群。群主、管理员和白名单成员受到保护。"
+    >
+      <v-btn variant="tonal" @click="tab = 'whitelist'">管理白名单</v-btn>
+      <v-btn :loading="submitting" :disabled="running" @click="preview">生成预览</v-btn>
+    </PageHeader>
+    <v-card v-if="!jobId" class="surface-card pa-8 mb-6">
+      <h2 class="text-title-large mb-3">先预览，再执行</h2>
+      <p class="muted">预览只计算重复成员与保留群。成员同步失败时禁止执行踢人。</p>
+    </v-card>
+    <JobPanel :job-id="jobId">
+      <template #default="{ job }">
+        <div v-if="job" class="d-flex ga-5 flex-wrap mt-4">
+          <span>重复成员 {{ job.summary.duplicate_users || 0 }}</span>
+          <span>待执行动作 {{ job.summary.actions || 0 }}</span>
+          <span>保护成员 {{ job.summary.whitelist_skipped || 0 }}</span>
+          <v-btn
+            v-if="job.kind === 'dedupe.preview' && job.status === 'preview'"
+            color="error"
+            :disabled="!Number(job.summary.actions)"
+            @click="confirm = true"
+          >
+            确认执行踢人
+          </v-btn>
         </div>
-        <el-progress
-          :percentage="progress"
-          :text-inside="true"
-          :stroke-width="18"
-        />
-        <div class="compact-metrics" style="margin-top: 14px">
-          <div class="compact-metric">
-            <span>已拉取群</span>
-            <strong>{{ summary.completed_groups ?? 0 }} / {{ summary.total_groups ?? 0 }}</strong>
-          </div>
-          <div class="compact-metric">
-            <span>重复用户</span>
-            <strong>{{ previewData?.duplicate_users ?? 0 }}</strong>
-          </div>
-          <div class="compact-metric">
-            <span>待踢动作</span>
-            <strong>{{ previewData?.actions?.length ?? 0 }}</strong>
-          </div>
-          <div class="compact-metric">
-            <span>保护跳过</span>
-            <strong>{{ summary.whitelist_skipped ?? 0 }}</strong>
-          </div>
-        </div>
-        <el-alert v-if="summary.current_group_id" type="info" :closable="false" style="margin-top: 14px">
-          正在拉取群 {{ summary.current_group_id }} 的成员列表，单群最多等待 5 分钟。
-        </el-alert>
-        <el-alert v-if="summary.error" type="error" :closable="false" style="margin-top: 14px">
-          {{ summary.error }}
-        </el-alert>
-        <el-alert v-if="failedGroups.length" type="warning" :closable="false" style="margin-top: 14px">
-          拉取失败群：{{ failedGroups.join('、') }}。预览不完整，已禁止执行踢人。
-        </el-alert>
-        <el-table
-          v-if="failedDetails.length"
-          style="margin-top: 14px"
-          :data="failedDetails"
-          border
-        >
-          <el-table-column prop="group_id" label="群号" width="140" />
-          <el-table-column prop="name" label="群名" width="180" show-overflow-tooltip />
-          <el-table-column prop="error" label="失败原因" min-width="220" show-overflow-tooltip />
-        </el-table>
-      </div>
-
-      <div class="content-band">
-        <div class="section-head">
-          <div>
-            <h3>白名单</h3>
-            <span>群主和管理员会自动保护，这里添加额外 QQ。</span>
-          </div>
-        </div>
-        <div class="whitelist-input-group">
-          <el-input-number
-            v-model="whitelistForm.user_id"
-            placeholder="QQ"
-            :controls="false"
-          />
-          <el-input v-model="whitelistForm.note" placeholder="备注" />
-          <el-button type="primary" @click="addWhitelist">添加</el-button>
-        </div>
-        <el-table
-          style="margin-top: 14px"
-          :data="whitelist"
-          border
-        >
-          <el-table-column prop="user_id" label="QQ" width="150" />
-          <el-table-column prop="note" label="备注" />
-          <el-table-column label="启用" width="90">
-            <template #default="{ row }">
-              <el-switch v-model="row.enabled" @change="(value: boolean) => toggleWhitelist(row, value)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="90">
-            <template #default="{ row }">
-              <el-popconfirm title="确认删除这个白名单？" @confirm="removeWhitelist(row.id)">
-                <template #reference>
-                  <el-button size="small" type="danger">删除</el-button>
-                </template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </div>
-
-    <div v-if="skippedMembers.length" class="content-band" style="margin-bottom: 18px">
-      <div class="section-head">
-        <div>
-          <h3>保护跳过</h3>
-          <span>这些重复用户不会生成踢人动作。</span>
-        </div>
-      </div>
-      <el-table :data="skippedMembers" border>
-        <el-table-column prop="user_id" label="QQ" width="150" />
-        <el-table-column prop="nickname" label="昵称" />
-        <el-table-column prop="reason" label="原因" width="160" />
-        <el-table-column label="所在群" min-width="220">
-          <template #default="{ row }">{{ row.groups?.join('、') ?? '' }}</template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <div class="content-band">
-      <div class="section-head">
-        <div>
-          <h3>踢出预览</h3>
-          <span>只展示确认后会执行的动作。</span>
-        </div>
-      </div>
-      <el-table :data="previewData?.actions ?? []" border>
-        <el-table-column prop="user_id" label="QQ" width="150" />
-        <el-table-column prop="nickname" label="昵称" min-width="160" />
-        <el-table-column prop="keep_group_id" label="保留群" width="150" />
-        <el-table-column prop="kick_group_id" label="踢出群" width="150" />
-        <el-table-column prop="status" label="状态" width="120" />
-        <el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip />
-      </el-table>
-    </div>
+      </template>
+    </JobPanel>
+    <v-tabs v-if="jobId" v-model="detailTab" color="primary" class="mb-5">
+      <v-tab value="actions">操作明细</v-tab>
+      <v-tab value="results">同步与保护明细</v-tab>
+    </v-tabs>
+    <ResourceTable
+      v-if="detailTab === 'actions' && job?.dedupe_job_id"
+      :key="job.dedupe_job_id"
+      resource="actions"
+      :headers="actionHeaders"
+      :filters="{ job_id: job.dedupe_job_id }"
+      :topic="`jobs:${jobId}`"
+    />
+    <ResourceTable
+      v-else-if="detailTab === 'results' && jobId"
+      :key="jobId"
+      resource="job-items"
+      :headers="resultHeaders"
+      :filters="{ job_id: jobId }"
+      :topic="`jobs:${jobId}`"
+    >
+      <template #actions="{ row }">
+        <v-btn variant="text" size="small" @click="show(row)">详情</v-btn>
+      </template>
+    </ResourceTable>
+    <v-dialog v-model="confirm" max-width="500">
+      <v-card
+        title="确认执行去重"
+        text="将按预览踢出低优先级群中的重复成员。此操作不能撤销，执行时仍会检查白名单与管理员保护。"
+      >
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="confirm = false">取消</v-btn>
+          <v-btn color="error" :loading="submitting" @click="execute">执行踢人</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="detailOpen" max-width="680" scrollable>
+      <v-card title="保护或同步详情">
+        <v-card-text>
+          <v-progress-linear v-if="detailQuery.isFetching.value" indeterminate />
+          <QueryError :error="detailQuery.error.value" @retry="detailQuery.refetch()" />
+          <pre class="mono">{{ detail }}</pre>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="detailOpen = false">关闭</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </AdminLayout>
 </template>
-
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useResourceDetail } from '../api/details'
+import QueryError from '../components/QueryError.vue'
+import { submitJob } from '../api/jobs'
+import { useRpcQuery } from '../api/queries'
+import { pageStates, report } from '../stores/ui'
 import AdminLayout from '../components/AdminLayout.vue'
-import { api } from '../api/client'
+import PageHeader from '../components/PageHeader.vue'
+import ResourceEditor from '../components/ResourceEditor.vue'
+import ResourceTable from '../components/ResourceTable.vue'
+import JobPanel from '../components/JobPanel.vue'
+const route = useRoute(),
+  pagePath = route.path,
+  tab = ref('preview'),
+  detailTab = ref('actions'),
+  jobId = ref<number | null>(pageStates.get(pagePath)?.jobId || null),
+  submitting = ref(false),
+  confirm = ref(false)
 
-const previewData = ref<any>(null)
-const whitelist = ref<any[]>([])
-const pollingTimer = ref<number | null>(null)
-const whitelistForm = reactive({ user_id: null as number | null, note: '' })
-
-function normalizeStatus(status: unknown) {
-  const value = String(status ?? 'idle')
-  return value.includes('.') ? value.split('.').pop() || value : value
-}
-
-const summary = computed(() => previewData.value?.summary ?? {})
-const jobStatus = computed(() => normalizeStatus(previewData.value?.status))
-const failedGroups = computed(() => summary.value.failed_groups ?? [])
-const failedDetails = computed(() => summary.value.failed_details ?? [])
-const skippedMembers = computed(() => summary.value.skipped_members ?? [])
-const previewRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && summary.value.phase !== 'kicking')
-const executeRunning = computed(() => ['pending', 'running'].includes(jobStatus.value) && ['execute_queued', 'kicking'].includes(summary.value.phase))
-const canExecute = computed(() =>
-  (jobStatus.value === 'preview' || summary.value.phase === 'preview_ready') &&
-  (previewData.value?.actions?.length ?? 0) > 0 &&
-  !failedGroups.value.length
+const query = useRpcQuery(
+  'jobs.get',
+  () => ({ id: jobId.value || 0 }),
+  () => `jobs:${jobId.value}`,
+  () => !!jobId.value && tab.value === 'preview',
 )
-const progress = computed(() => {
-  if (summary.value.phase === 'kicking') return summary.value.execute_progress ?? 0
-  return summary.value.progress ?? 0
-})
-const statusType = computed(() => {
-  if (jobStatus.value === 'failed') return 'error'
-  if (jobStatus.value === 'success' || jobStatus.value === 'preview') return 'success'
-  if (jobStatus.value === 'running' || jobStatus.value === 'pending') return 'primary'
-  return 'info'
-})
-const phaseText = computed(() => {
-  const phase = summary.value.phase
-  if (phase === 'queued') return '任务已提交，等待后端开始。'
-  if (phase === 'fetching_members') return '正在实时拉取群成员列表。'
-  if (phase === 'building_preview') return '正在生成去重预览。'
-  if (phase === 'preview_ready') return '预览已完成，请检查后确认踢出。'
-  if (phase === 'fetch_failed') return '成员列表拉取失败，不能执行踢人。'
-  if (phase === 'execute_queued') return '踢人任务已提交。'
-  if (phase === 'kicking') return `正在执行踢人：${summary.value.execute_completed ?? 0} / ${summary.value.execute_total ?? 0}`
-  if (phase === 'execute_done') return '踢人执行完成。'
-  return '尚未启动任务。'
-})
-
-function clearPolling() {
-  if (pollingTimer.value !== null) {
-    window.clearInterval(pollingTimer.value)
-    pollingTimer.value = null
-  }
-}
-
-function shouldPoll(data: any) {
-  const phase = data?.summary?.phase
-  return ['pending', 'running'].includes(normalizeStatus(data?.status)) || ['execute_queued', 'kicking'].includes(phase)
-}
-
-async function pollJob(jobId: number) {
-  const { data } = await api.get(`/admin/dedupe/jobs/${jobId}`)
-  previewData.value = data
-  if (!shouldPoll(data)) {
-    clearPolling()
-  }
-}
-
-function startPolling(jobId: number) {
-  clearPolling()
-  pollingTimer.value = window.setInterval(() => {
-    pollJob(jobId).catch(() => {
-      clearPolling()
-      ElMessage.error('任务状态刷新失败')
-    })
-  }, 1500)
-}
-
+const job = computed(() => query.data.value),
+  running = computed(() => ['pending', 'running'].includes(job.value?.status || ''))
+const actionHeaders = [
+  ['QQ', 'user_id'],
+  ['昵称', 'nickname'],
+  ['保留群', 'keep_group_id'],
+  ['踢出群', 'kick_group_id'],
+  ['状态', 'status'],
+  ['错误', 'error'],
+].map(([title, key]) => ({ title, key, sortable: false }))
+const resultHeaders = [
+  ['群', 'group_id'],
+  ['状态', 'status'],
+  ['错误', 'error'],
+  ['操作', 'actions'],
+].map(([title, key]) => ({ title, key, sortable: false }))
 async function preview() {
-  const { data } = await api.post('/admin/dedupe/preview')
-  previewData.value = data
-  startPolling(data.job_id)
-  ElMessage.success('已提交实时预览任务')
-}
-
-async function execute() {
-  if (!previewData.value?.job_id) return
-  const { data } = await api.post('/admin/dedupe/execute', { job_id: previewData.value.job_id })
-  previewData.value = { ...previewData.value, status: data.status, summary: data.summary }
-  startPolling(data.id)
-  ElMessage.success('已提交踢人任务')
-}
-
-async function loadWhitelist() {
-  const { data } = await api.get('/admin/dedupe/whitelist')
-  whitelist.value = data
-}
-
-async function addWhitelist() {
-  if (!whitelistForm.user_id) {
-    ElMessage.warning('请填写 QQ')
-    return
+  submitting.value = true
+  try {
+    jobId.value = (await submitJob('dedupe.preview', {})).id
+  } catch (error) {
+    report(error)
+  } finally {
+    submitting.value = false
   }
-  await api.post('/admin/dedupe/whitelist', {
-    user_id: whitelistForm.user_id,
-    note: whitelistForm.note
-  })
-  whitelistForm.user_id = null
-  whitelistForm.note = ''
-  ElMessage.success('已添加白名单')
-  loadWhitelist()
 }
-
-async function toggleWhitelist(row: any, enabled: boolean) {
-  await api.patch(`/admin/dedupe/whitelist/${row.id}`, { enabled })
-  row.enabled = enabled
+async function execute() {
+  if (!jobId.value) return
+  submitting.value = true
+  try {
+    jobId.value = (await submitJob('dedupe.execute', { job_id: jobId.value })).id
+    confirm.value = false
+  } catch (error) {
+    report(error)
+  } finally {
+    submitting.value = false
+  }
 }
-
-async function removeWhitelist(id: number) {
-  await api.delete(`/admin/dedupe/whitelist/${id}`)
-  ElMessage.success('已删除')
-  loadWhitelist()
-}
-
-onMounted(loadWhitelist)
-onBeforeUnmount(clearPolling)
+const { open: detailOpen, query: detailQuery, show } = useResourceDetail('job-items')
+const detail = computed(() =>
+  detailQuery.data.value ? JSON.stringify(detailQuery.data.value, null, 2) : '',
+)
+onBeforeUnmount(() =>
+  pageStates.set(pagePath, { page: 1, search: '', jobId: jobId.value || undefined }),
+)
 </script>
