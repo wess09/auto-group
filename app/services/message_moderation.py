@@ -52,8 +52,7 @@ def find_matching_moderation_rule(
 def _has_ocr_enabled_rule(session: Session, group_id: int) -> bool:
     """检查是否存在适用于该群的、已启用 OCR 的审查规则。"""
     rules = session.exec(
-        select(MessageModerationRule)
-        .where(
+        select(MessageModerationRule).where(
             col(MessageModerationRule.enabled) == True,  # noqa: E712
             col(MessageModerationRule.ocr_enabled) == True,  # noqa: E712
         )
@@ -90,13 +89,17 @@ def _extract_image_urls(event: GroupMessageLike) -> list[str]:
     message = getattr(event, "message", None)
     if message is None:
         return urls
-    
+
     logger.info(f"正在解析消息段提取图片: {message}")
     # NoneBot2 OneBot v11 Message 对象可迭代，每个 MessageSegment 有 type 和 data
     try:
         for seg in message:
-            seg_type = getattr(seg, "type", None) or (seg.get("type") if isinstance(seg, dict) else None)
-            seg_data = getattr(seg, "data", None) or (seg.get("data") if isinstance(seg, dict) else None)
+            seg_type = getattr(seg, "type", None) or (
+                seg.get("type") if isinstance(seg, dict) else None
+            )
+            seg_data = getattr(seg, "data", None) or (
+                seg.get("data") if isinstance(seg, dict) else None
+            )
             logger.info(f"消息段 type={seg_type}, data={seg_data}")
             if seg_type == "image" and seg_data:
                 url = seg_data.get("url") or seg_data.get("file")
@@ -133,8 +136,12 @@ async def apply_moderation_action(
 
 
 async def _apply_cloud_review_if_needed(
-    rule: MessageModerationRule, session: Session, text: str,
-    group_id: int, user_id: int, message_id: int,
+    rule: MessageModerationRule,
+    session: Session,
+    text: str,
+    group_id: int,
+    user_id: int,
+    message_id: int,
 ) -> bool:
     """如果规则开启了云审核，执行云审核并返回是否应触发动作。未开启云审核则直接返回 True。"""
     if not rule.cloud_review_enabled:
@@ -150,15 +157,21 @@ async def _apply_cloud_review_if_needed(
     return decision.should_trigger
 
 
-async def moderate_group_message(session: Session, event: GroupMessageLike) -> MessageModerationRule | None:
+async def moderate_group_message(
+    session: Session, event: GroupMessageLike
+) -> MessageModerationRule | None:
     # ── 阶段 1：纯文本正则匹配 ──
     message_text = event.get_plaintext()
     if message_text:
         rule = find_matching_moderation_rule(session, event.group_id, message_text)
         if rule:
             should_trigger = await _apply_cloud_review_if_needed(
-                rule, session, message_text,
-                event.group_id, event.user_id, event.message_id,
+                rule,
+                session,
+                message_text,
+                event.group_id,
+                event.user_id,
+                event.message_id,
             )
             if should_trigger:
                 await apply_moderation_action(rule, event.group_id, event.user_id, event.message_id)
@@ -172,7 +185,7 @@ async def moderate_group_message(session: Session, event: GroupMessageLike) -> M
     logger.info("当前群存在启用了 OCR 的规则，准备提取图片...")
     image_urls = _extract_image_urls(event)
     logger.info(f"最终提取到的合法图片 URL: {image_urls}")
-    
+
     if not image_urls:
         return None
 
@@ -188,14 +201,66 @@ async def moderate_group_message(session: Session, event: GroupMessageLike) -> M
         if not ocr_text:
             logger.warning(f"图片中未提取到文字或文字过小被过滤 (url={url})")
             continue
-        logger.info(f"OCR 识别结果 (group={event.group_id}, user={event.user_id}): {ocr_text[:200]}")
+        logger.info(
+            f"OCR 识别结果 (group={event.group_id}, user={event.user_id}): {ocr_text[:200]}"
+        )
         rule = _find_matching_ocr_rule(session, event.group_id, ocr_text)
         if rule:
             should_trigger = await _apply_cloud_review_if_needed(
-                rule, session, ocr_text,
-                event.group_id, event.user_id, event.message_id,
+                rule,
+                session,
+                ocr_text,
+                event.group_id,
+                event.user_id,
+                event.message_id,
             )
             if should_trigger:
                 await apply_moderation_action(rule, event.group_id, event.user_id, event.message_id)
                 return rule
+    return None
+
+
+async def moderate_group_message_detached(event: GroupMessageLike) -> MessageModerationRule | None:
+    """Use a detached configuration snapshot during network/OCR calls."""
+    from app.models import TencentCloudTmsConfig
+    from app.services.admin.bot_data import moderation_snapshot
+    from app.services.admin.runtime import database
+
+    rows, config_data = await database(moderation_snapshot, event.group_id)
+    rules = [MessageModerationRule(**row) for row in rows]
+    config = TencentCloudTmsConfig(**config_data)
+
+    async def apply(rule: MessageModerationRule, text: str) -> bool:
+        if rule.cloud_review_enabled:
+            decision = await cloud_text_moderation.moderate_text(
+                config,
+                text,
+                group_id=event.group_id,
+                user_id=event.user_id,
+                message_id=event.message_id,
+            )
+            if not decision.should_trigger:
+                return False
+        await apply_moderation_action(rule, event.group_id, event.user_id, event.message_id)
+        return True
+
+    text = event.get_plaintext()
+    for rule in rules:
+        if text and message_matches_rule(rule, text):
+            return rule if await apply(rule, text) else None
+    ocr_rules = [rule for rule in rules if rule.ocr_enabled]
+    if not ocr_rules:
+        return None
+    from app.services.ocr import ocr_image_from_url
+
+    for url in _extract_image_urls(event):
+        try:
+            text = await ocr_image_from_url(url)
+        except Exception:
+            continue
+        for rule in ocr_rules:
+            if text and message_matches_rule(rule, text):
+                if await apply(rule, text):
+                    return rule
+                break
     return None

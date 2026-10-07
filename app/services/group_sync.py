@@ -1,30 +1,35 @@
 import asyncio
 from datetime import datetime, timedelta
 
-from sqlmodel import Session, col, select
+from sqlmodel import Session, select
 
 from app.core.config import get_settings
-from app.core.database import engine
 from app.models import ManagedGroup
-from app.services.dedupe import refresh_group_members
-from app.services.sync import sync_group_info
+from app.services.admin.jobs import sync
+from app.services.admin.runtime import database
 
 
 async def sync_one_group_info(group_id: int) -> bool:
-    with Session(engine) as session:
-        group = session.exec(select(ManagedGroup).where(col(ManagedGroup.group_id) == group_id)).first()
-        if not group:
-            return False
-        await sync_group_info(session, group)
+    exists = await database(
+        lambda session: session.exec(
+            select(ManagedGroup.id).where(ManagedGroup.group_id == group_id)
+        ).first()
+    )
+    if not exists:
+        return False
+    await sync("groups", group_id)
     return True
+
+
+def enabled_ids(session: Session) -> list[int]:
+    return list(
+        session.exec(select(ManagedGroup.group_id).where(ManagedGroup.enabled.is_(True))).all()
+    )
 
 
 async def sync_all_group_info() -> None:
     settings = get_settings()
-    with Session(engine) as session:
-        group_ids = session.exec(
-            select(col(ManagedGroup.group_id)).where(col(ManagedGroup.enabled) == True)  # noqa: E712
-        ).all()
+    group_ids = await database(enabled_ids)
 
     semaphore = asyncio.Semaphore(max(1, settings.group_sync_concurrency))
 
@@ -39,15 +44,12 @@ async def sync_all_group_info() -> None:
 
 
 async def sync_all_member_snapshots() -> None:
-    with Session(engine) as session:
-        groups = session.exec(
-            select(ManagedGroup).where(col(ManagedGroup.enabled) == True)  # noqa: E712
-        ).all()
-        for group in groups:
-            try:
-                await refresh_group_members(session, group)
-            except Exception:
-                continue
+    group_ids = await database(enabled_ids)
+    for group_id in group_ids:
+        try:
+            await sync("members", group_id)
+        except Exception:
+            continue
 
 
 def _seconds_until_daily_time(value: str) -> float:

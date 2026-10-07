@@ -21,6 +21,7 @@ async def call_onebot(api: str, **data: Any) -> Any:
     bot = get_onebot()
     if bot is None:
         raise RuntimeError("没有已连接的 OneBot/LLBot 实例")
+    data.setdefault("_timeout", get_settings().onebot_api_timeout_seconds)
     return await bot.call_api(api, **data)
 
 
@@ -133,9 +134,7 @@ async def rename_group_file(
     )
 
 
-async def rename_group_file_folder(
-    group_id: int, folder_id: str, new_folder_name: str
-) -> Any:
+async def rename_group_file_folder(group_id: int, folder_id: str, new_folder_name: str) -> Any:
     return await call_onebot(
         "rename_group_file_folder",
         group_id=group_id,

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, ClassVar
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -277,3 +277,29 @@ class AuditLog(SQLModel, table=True):
     target: str = ""
     detail: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class AdminJob(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "admin_jobs"
+    __table_args__ = (UniqueConstraint("admin_id", "request_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    admin_id: int = Field(index=True)
+    request_id: str = Field(index=True)
+    kind: str
+    status: str = Field(default="pending", index=True)
+    params: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    summary: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    dedupe_job_id: int | None = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class AdminJobItem(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "admin_job_items"
+    id: int | None = Field(default=None, primary_key=True)
+    job_id: int = Field(index=True)
+    group_id: int
+    status: str = "pending"
+    error: str = ""
+    detail: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

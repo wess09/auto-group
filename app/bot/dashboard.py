@@ -10,6 +10,8 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.services.group_sync import group_info_sync_loop, member_snapshot_daily_loop
+from app.services.admin import jobs
+from app.services.admin.runtime import database, hub
 
 
 driver = get_driver()
@@ -21,8 +23,23 @@ async def start_background_sync_tasks() -> None:
     if app is None or getattr(app.state, "auto_group_sync_tasks_started", False):
         return
     app.state.auto_group_sync_tasks_started = True
+    hub.start()
+    await database(jobs.recover)
     app.state.auto_group_info_sync_task = asyncio.create_task(group_info_sync_loop())
     app.state.auto_group_member_snapshot_task = asyncio.create_task(member_snapshot_daily_loop())
+
+
+@driver.on_shutdown
+async def stop_background_tasks() -> None:
+    app = getattr(driver, "server_app", None)
+    running = list(jobs.tasks)
+    for name in ("auto_group_info_sync_task", "auto_group_member_snapshot_task"):
+        task = getattr(app.state, name, None) if app else None
+        if task:
+            running.append(task)
+    for task in running:
+        task.cancel()
+    await asyncio.gather(*running, return_exceptions=True)
 
 
 def mount_dashboard() -> None:

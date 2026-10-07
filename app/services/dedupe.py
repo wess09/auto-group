@@ -113,8 +113,13 @@ async def refresh_group_members(session: Session, group: ManagedGroup) -> int:
     return count
 
 
-def create_dedupe_preview(session: Session, job: DedupeJob | None = None) -> DedupeJob:
+def create_dedupe_preview(
+    session: Session, job: DedupeJob | None = None, group_ids: list[int] | None = None
+) -> DedupeJob:
     groups = _enabled_groups(session)
+    if group_ids is not None:
+        selected = set(group_ids)
+        groups = {gid: group for gid, group in groups.items() if gid in selected}
     manual_whitelist = _active_manual_whitelist(session)
     members = session.exec(select(GroupMember)).all()
     by_user: dict[int, list[GroupMember]] = defaultdict(list)

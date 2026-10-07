@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.entities import LogicMode, MatchMode, MessageModerationAction
 
@@ -16,7 +16,11 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
 
 
-class ManagedGroupIn(BaseModel):
+class AdminInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ManagedGroupIn(AdminInput):
     group_id: int
     name: str = ""
     priority: int = 100
@@ -30,7 +34,7 @@ class ManagedGroupIn(BaseModel):
     note: str = ""
 
 
-class ManagedGroupPatch(BaseModel):
+class ManagedGroupPatch(AdminInput):
     name: str | None = None
     priority: int | None = None
     enabled: bool | None = None
@@ -41,7 +45,7 @@ class ManagedGroupPatch(BaseModel):
     note: str | None = None
 
 
-class AnswerRuleIn(BaseModel):
+class AnswerRuleIn(AdminInput):
     name: str
     enabled: bool = True
     group_id: int | None = None
@@ -50,7 +54,7 @@ class AnswerRuleIn(BaseModel):
     patterns: list[str] = Field(default_factory=list)
 
 
-class AnswerRulePatch(BaseModel):
+class AnswerRulePatch(AdminInput):
     name: str | None = None
     enabled: bool | None = None
     group_id: int | None = None
@@ -59,7 +63,7 @@ class AnswerRulePatch(BaseModel):
     patterns: list[str] | None = None
 
 
-class MessageModerationRuleIn(BaseModel):
+class MessageModerationRuleIn(AdminInput):
     name: str
     enabled: bool = True
     group_id: int | None = None
@@ -71,7 +75,7 @@ class MessageModerationRuleIn(BaseModel):
     note: str = ""
 
 
-class MessageModerationRulePatch(BaseModel):
+class MessageModerationRulePatch(AdminInput):
     name: str | None = None
     enabled: bool | None = None
     group_id: int | None = None
@@ -83,7 +87,7 @@ class MessageModerationRulePatch(BaseModel):
     note: str | None = None
 
 
-class TencentCloudTmsConfigIn(BaseModel):
+class TencentCloudTmsConfigIn(AdminInput):
     secret_id: str = ""
     secret_key: str = ""
     region: str = "ap-guangzhou"
@@ -151,25 +155,25 @@ class DedupeExecuteIn(BaseModel):
     job_id: int
 
 
-class DedupeWhitelistIn(BaseModel):
+class DedupeWhitelistIn(AdminInput):
     user_id: int
     note: str = ""
     enabled: bool = True
 
 
-class DedupeWhitelistPatch(BaseModel):
+class DedupeWhitelistPatch(AdminInput):
     note: str | None = None
     enabled: bool | None = None
 
 
-class JoinBlacklistIn(BaseModel):
+class JoinBlacklistIn(AdminInput):
     user_id: int
     enabled: bool = True
     reason: str = "你已被加入黑名单，无法申请入群。"
     note: str = ""
 
 
-class JoinBlacklistPatch(BaseModel):
+class JoinBlacklistPatch(AdminInput):
     enabled: bool | None = None
     reason: str | None = None
     note: str | None = None

@@ -28,9 +28,7 @@ def _upgrade_sqlite_schema() -> None:
     inspector = inspect(engine)
     if not inspector.has_table("message_moderation_rules"):
         return
-    columns = {
-        column["name"] for column in inspector.get_columns("message_moderation_rules")
-    }
+    columns = {column["name"] for column in inspector.get_columns("message_moderation_rules")}
     with engine.begin() as connection:
         if "cloud_review_enabled" not in columns:
             connection.execute(
@@ -44,6 +42,20 @@ def _upgrade_sqlite_schema() -> None:
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     _upgrade_sqlite_schema()
+    with engine.begin() as connection:
+        for table, columns in (
+            ("join_requests", "created_at, id"),
+            ("leave_events", "created_at, id"),
+            ("audit_logs", "created_at, id"),
+            ("announcements", "group_id, synced_at, id"),
+            ("essence_messages", "group_id, synced_at, id"),
+            ("dedupe_actions", "job_id, id"),
+            ("admin_job_items", "job_id, id"),
+            ("member_activity_stats", "stat_date, group_id, user_id"),
+        ):
+            connection.execute(
+                text(f"CREATE INDEX IF NOT EXISTS ix_{table}_admin_page ON {table} ({columns})")
+            )
     with Session(engine) as session:
         config = session.exec(select(TencentCloudTmsConfig)).first()
         if not config:
