@@ -1,8 +1,10 @@
 """OpenAI-compatible vision review. Malformed/failed responses only produce logs."""
 
 import asyncio
+import re
 from time import monotonic
 from typing import Annotated, Any
+from urllib.parse import quote
 
 import httpx
 from nonebot import logger
@@ -55,6 +57,65 @@ NULLABLE_CATEGORIES = {"illicit", "illicit/violent"}
 
 review_semaphore = asyncio.Semaphore(2)
 REVIEW_TOOL = "submit_image_review"
+RETRY_400_DELAYS = (0.5, 1.0)
+
+
+def _redact_error_value(value: str, secrets: tuple[str, ...]) -> str:
+    for secret in secrets:
+        if secret:
+            value = value.replace(secret, "[REDACTED]").replace(
+                quote(secret, safe=""), "[REDACTED]"
+            )
+    value = value.replace("\\/", "/")
+    value = re.sub(r"data:image/[^\s\"'<>]+", "[IMAGE_DATA]", value, flags=re.IGNORECASE)
+    value = re.sub(r"https?://[^\s\"'<>]+", "[URL]", value, flags=re.IGNORECASE)
+    value = re.sub(r"\bBearer\s+[^\s\"'<>]+", "Bearer [REDACTED]", value, flags=re.IGNORECASE)
+    return re.sub(r"\bsk-[A-Za-z0-9_-]+", "[REDACTED]", value)
+
+
+def http_error_details(response: httpx.Response, *, secrets: tuple[str, ...] = ()) -> str:
+    """Log selected error fields, never the full response body or request."""
+    fields: list[str] = []
+    request_id = response.headers.get("x-request-id") or response.headers.get("request-id")
+    if request_id:
+        fields.append(f"request_id={_redact_error_value(request_id, secrets)[:128]!r}")
+    if len(response.content) > 64 * 1024:
+        return "，".join([*fields, "错误响应过大，未读取详情"])
+    try:
+        data = response.json()
+    except ValueError:
+        return "，".join([*fields, "返回非 JSON 错误响应，未打印原文"])
+    error = data.get("error", data) if isinstance(data, dict) else None
+    if isinstance(error, dict):
+        for key in ("type", "code", "param", "message"):
+            value = error.get(key)
+            if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+                limit = 500 if key == "message" else 128
+                value = _redact_error_value(str(value), secrets)[:limit]
+                fields.append(f"{key}={value!r}")
+    return "，".join(fields) or "接口未提供结构化错误详情"
+
+
+async def _post_with_400_retries(
+    client: httpx.AsyncClient,
+    channel: ImageReviewChannelIn,
+    headers: dict[str, str],
+    body: dict[str, Any],
+    image_url: str,
+    scope: str,
+) -> httpx.Response:
+    for attempt in range(len(RETRY_400_DELAYS) + 1):
+        response = await client.post(build_endpoint(channel), headers=headers, json=body)
+        if response.status_code != 400 or attempt == len(RETRY_400_DELAYS):
+            return response
+        details = http_error_details(response, secrets=(channel.api_key, image_url))
+        logger.warning(
+            f"图片审核 HTTP 400{scope}：channel={channel.name or channel.id}，"
+            f"model={channel.model}，{details}，"
+            f"将在 {RETRY_400_DELAYS[attempt]}s 后重发 {attempt + 1}/2"
+        )
+        await asyncio.sleep(RETRY_400_DELAYS[attempt])
+    raise AssertionError("unreachable")
 
 
 def is_moderation_model(model: str) -> bool:
@@ -243,10 +304,13 @@ async def review_image(
                     headers["Authorization"] = f"Bearer {channel.api_key}"
                 async with httpx.AsyncClient(timeout=channel.timeout_seconds) as client:
                     response = await asyncio.wait_for(
-                        client.post(
-                            build_endpoint(channel),
-                            headers=headers,
-                            json=build_request(config, channel, image_url, text),
+                        _post_with_400_retries(
+                            client,
+                            channel,
+                            headers,
+                            build_request(config, channel, image_url, text),
+                            image_url,
+                            scope,
                         ),
                         timeout=channel.timeout_seconds,
                     )
@@ -266,9 +330,13 @@ async def review_image(
                 # Any valid verdict ends failover, including safe/low-confidence results.
                 return verdict
             except httpx.HTTPStatusError as exc:
+                details = http_error_details(exc.response, secrets=(channel.api_key, image_url))
+                retry_note = "，额外重发 2 次仍失败" if exc.response.status_code == 400 else ""
                 logger.warning(
-                    f"图片审核渠道失败{scope}：channel={label}，HTTP {exc.response.status_code}，"
-                    f"耗时={monotonic() - started:.2f}s，尝试下一启用渠道（如有）"
+                    f"图片审核渠道失败{scope}：channel={label}，model={channel.model}，"
+                    f"HTTP {exc.response.status_code}{retry_note}，"
+                    f"耗时={monotonic() - started:.2f}s，"
+                    f"{details}，尝试下一启用渠道（如有）"
                 )
             except (
                 httpx.HTTPError,
