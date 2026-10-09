@@ -218,7 +218,7 @@ async def _moderate_snapshot(
     if image_rule and image_config.enabled:
         logger.info(
             f"图片审核开始（{context}）：rule={image_rule.id}，图片数={len(image_urls)}，"
-            f"最低置信度={image_config.min_confidence}"
+            f"动作阈值={image_config.min_confidence}"
         )
         for index, url in enumerate(image_urls, start=1):
             image_context = f"{context}, image={index}/{len(image_urls)}"
@@ -233,7 +233,8 @@ async def _moderate_snapshot(
                 f"图片审核完成（{image_context}, channel={verdict._channel_name}, "
                 f"model={verdict._model_name}）："
                 f"违规={verdict.violates}，"
-                f"置信度={verdict.confidence}，触发动作={trigger}，原因={verdict.reason!r}"
+                f"{verdict._score_label}={verdict.confidence}，触发动作={trigger}，"
+                f"原因={verdict.reason!r}"
             )
             if trigger:
                 logger.info(
@@ -255,7 +256,9 @@ async def _moderate_snapshot(
                     "结束本条消息的审核"
                 )
                 return image_rule
-            reason = "模型判定不违规" if not verdict.violates else "置信度未达到阈值"
+            reason = (
+                "模型判定不违规" if not verdict.violates else f"{verdict._score_label}未达到阈值"
+            )
             logger.info(f"图片审核不执行动作（{image_context}）：{reason}")
     elif image_rule:
         logger.warning(f"图片审核跳过（{context}）：全局图片审核服务未启用")

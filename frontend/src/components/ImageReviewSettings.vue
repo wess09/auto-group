@@ -52,7 +52,7 @@
               v-model="channel.base_url"
               label="API Base URL"
               :rules="required"
-              hint="例如 https://api.openai.com/v1；也可填兼容接口的完整 /chat/completions 地址"
+              hint="例如 https://api.openai.com/v1；也可填完整 /chat/completions 或 /moderations 地址"
               persistent-hint
             />
             <v-text-field
@@ -77,10 +77,15 @@
               v-model="channel.model"
               label="多模态模型名称"
               :rules="channel.enabled ? required : []"
-              hint="填写服务商实际支持的图片理解模型"
+              hint="填写图片理解模型，或 omni-moderation-latest（自动使用专用审核接口）"
               persistent-hint
             />
+            <v-alert v-if="isModerationChannel" type="info" variant="tonal" class="mb-4">
+              已自动使用 Moderations 接口，按内置分类审核图片和附带文字。
+              提示词、ToolCall、思考预算和扩展参数不适用于此模型；日志会显示命中分类及分数。
+            </v-alert>
             <v-select
+              v-if="!isModerationChannel"
               v-model="channel.response_format"
               label="输出模式"
               :items="outputModes"
@@ -88,6 +93,7 @@
               persistent-hint
             />
             <v-select
+              v-if="!isModerationChannel"
               v-model="channel.reasoning_effort"
               label="思考强度（reasoning_effort）"
               :items="efforts"
@@ -95,6 +101,7 @@
               persistent-hint
             />
             <v-text-field
+              v-if="!isModerationChannel"
               v-model.number="channel.max_completion_tokens"
               label="输出总预算（max_completion_tokens）"
               type="number"
@@ -104,6 +111,7 @@
               persistent-hint
             />
             <v-textarea
+              v-if="!isModerationChannel"
               v-model="extraBodyText"
               label="服务商扩展参数（JSON）"
               rows="3"
@@ -112,6 +120,7 @@
               persistent-hint
             />
             <v-select
+              v-if="!isModerationChannel"
               v-model="channel.image_detail"
               label="图片精细度"
               :items="['auto', 'low', 'high', 'original']"
@@ -127,13 +136,22 @@
           <v-divider class="my-4" />
           <v-text-field
             v-model.number="form.min_confidence"
-            label="动作最低置信度（0–1）"
+            label="动作最低置信度／分类分数（0–1）"
             type="number"
             min="0"
             max="1"
             step="0.05"
+            hint="omni-moderation 需标记违规且命中分类的最高分达到阈值才执行动作"
+            persistent-hint
           />
-          <v-textarea v-model="form.system_prompt" label="审核提示词" :rules="required" rows="8" />
+          <v-textarea
+            v-model="form.system_prompt"
+            label="审核提示词"
+            :rules="required"
+            rows="8"
+            hint="仅用于图片理解模型；omni-moderation 使用内置分类，不发送此提示词"
+            persistent-hint
+          />
           <v-btn variant="text" size="small" :disabled="!query.data.value" @click="resetPrompt">
             恢复默认提示词
           </v-btn>
@@ -179,6 +197,10 @@ const form = reactive({
 })
 const selected = ref(0)
 const channel = computed(() => form.channels[selected.value])
+function isModerationModel(model = '') {
+  return model.trim().toLowerCase().startsWith('omni-moderation-')
+}
+const isModerationChannel = computed(() => isModerationModel(channel.value?.model || ''))
 const channelOptions = computed(() =>
   form.channels.map((item, index) => ({
     title: `${index + 1}. ${item.name || item.model || '未命名'}${item.enabled ? '' : '（停用）'}`,
@@ -288,7 +310,12 @@ async function save() {
   try {
     const channels = form.channels.map((item) => {
       const { api_key_configured: _, ...data } = item
-      return { ...data, extra_body: parseExtraBody(extraBodies[item.id] || '{}') }
+      return {
+        ...data,
+        extra_body: isModerationModel(item.model)
+          ? {}
+          : parseExtraBody(extraBodies[item.id] || '{}'),
+      }
     })
     await socket.request('image-review.update', { ...form, channels })
     dialog.value = false

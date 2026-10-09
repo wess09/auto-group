@@ -2,7 +2,7 @@
 
 import asyncio
 from time import monotonic
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
 from nonebot import logger
@@ -18,19 +18,69 @@ class ImageVerdict(BaseModel):
 
     _channel_name: str = PrivateAttr(default="")
     _model_name: str = PrivateAttr(default="")
+    _score_label: str = PrivateAttr(default="置信度")
 
     violates: bool
     confidence: float = Field(ge=0, le=1, allow_inf_nan=False)
     reason: str = Field(min_length=1, max_length=1000)
 
 
+class ModerationResult(BaseModel):
+    model_config = ConfigDict(strict=True)
+
+    flagged: bool
+    categories: dict[str, bool | None] = Field(min_length=1)
+    category_scores: dict[str, Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]] = Field(
+        min_length=1
+    )
+
+
+MODERATION_CATEGORIES = {
+    "sexual": "色情",
+    "sexual/minors": "未成年人性内容",
+    "harassment": "骚扰",
+    "harassment/threatening": "威胁性骚扰",
+    "hate": "仇恨",
+    "hate/threatening": "威胁性仇恨",
+    "illicit": "违法行为指导",
+    "illicit/violent": "暴力违法行为指导",
+    "self-harm": "自残",
+    "self-harm/intent": "自残意图",
+    "self-harm/instructions": "自残指导",
+    "violence": "暴力",
+    "violence/graphic": "血腥暴力",
+}
+NULLABLE_CATEGORIES = {"illicit", "illicit/violent"}
+
+
 review_semaphore = asyncio.Semaphore(2)
 REVIEW_TOOL = "submit_image_review"
+
+
+def is_moderation_model(model: str) -> bool:
+    return model.strip().lower().startswith("omni-moderation-")
+
+
+def build_endpoint(channel: ImageReviewChannelIn) -> str:
+    endpoint = channel.base_url.rstrip("/")
+    for suffix in ("/chat/completions", "/moderations"):
+        if endpoint.endswith(suffix):
+            endpoint = endpoint[: -len(suffix)]
+            break
+    path = "/moderations" if is_moderation_model(channel.model) else "/chat/completions"
+    return endpoint + path
 
 
 def build_request(
     config: ImageReviewConfig, channel: ImageReviewChannelIn, image_url: str, text: str
 ) -> dict[str, Any]:
+    if is_moderation_model(channel.model):
+        inputs: list[dict[str, Any]] = []
+        if text.strip():
+            inputs.append({"type": "text", "text": text[:2000]})
+        inputs.append({"type": "image_url", "image_url": {"url": image_url}})
+        # Moderations only accepts model/input, not prompts, tools or reasoning budgets.
+        return {"model": channel.model, "input": inputs}
     body = dict(channel.extra_body)
     contract = (
         "必须且只能调用一次 submit_image_review 工具提交审核结果，不要输出正文。"
@@ -132,6 +182,40 @@ def parse_response(data: dict, response_format: str = "json_schema") -> ImageVer
     return ImageVerdict.model_validate_json(content)
 
 
+def parse_moderation_response(data: dict) -> ImageVerdict:
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise ValueError("响应缺少 results")
+    if len(data["results"]) != 1:
+        raise ValueError("单张图片审核必须返回唯一结果")
+    result = ModerationResult.model_validate(data["results"][0])
+    required = MODERATION_CATEGORIES.keys() - NULLABLE_CATEGORIES
+    if not required.issubset(result.categories):
+        raise ValueError("审核结果缺少分类")
+    if result.categories.keys() != result.category_scores.keys():
+        raise ValueError("审核分类与分数不对应")
+    if any(
+        value is None and key not in NULLABLE_CATEGORIES for key, value in result.categories.items()
+    ):
+        raise ValueError("审核分类标记为空")
+    flagged = [name for name, value in result.categories.items() if value is True]
+    if result.flagged != bool(flagged):
+        raise ValueError("审核违规标记与分类不一致")
+    if flagged:
+        flagged.sort(key=lambda name: result.category_scores[name], reverse=True)
+        confidence = result.category_scores[flagged[0]]
+        details = "、".join(
+            f"{MODERATION_CATEGORIES.get(name, name)}({name})={result.category_scores[name]:.4f}"
+            for name in flagged
+        )
+        reason = "命中官方审核分类：" + details
+    else:
+        confidence = max(result.category_scores.values())
+        reason = f"官方审核未标记违规，最高分类分数={confidence:.4f}"
+    verdict = ImageVerdict(violates=result.flagged, confidence=confidence, reason=reason)
+    verdict._score_label = "分类分数"
+    return verdict
+
+
 async def review_image(
     config: ImageReviewConfig, image_url: str, text: str = "", *, context: str = ""
 ) -> ImageVerdict | None:
@@ -148,20 +232,19 @@ async def review_image(
             started = monotonic()
             try:
                 channel = ImageReviewChannelIn.model_validate(data)
+                moderation_api = is_moderation_model(channel.model)
+                mode = "moderations" if moderation_api else channel.response_format
                 logger.info(
                     f"图片审核 API 请求{scope}：channel={label}，model={channel.model}，"
-                    f"mode={channel.response_format}，timeout={channel.timeout_seconds}s"
+                    f"mode={mode}，timeout={channel.timeout_seconds}s"
                 )
                 headers = {"Content-Type": "application/json"}
                 if channel.api_key:
                     headers["Authorization"] = f"Bearer {channel.api_key}"
-                endpoint = channel.base_url.rstrip("/")
-                if not endpoint.endswith("/chat/completions"):
-                    endpoint += "/chat/completions"
                 async with httpx.AsyncClient(timeout=channel.timeout_seconds) as client:
                     response = await asyncio.wait_for(
                         client.post(
-                            endpoint,
+                            build_endpoint(channel),
                             headers=headers,
                             json=build_request(config, channel, image_url, text),
                         ),
@@ -170,7 +253,11 @@ async def review_image(
                 response.raise_for_status()
                 if len(response.content) > 1024 * 1024:
                     raise ValueError("审核响应过大")
-                verdict = parse_response(response.json(), channel.response_format)
+                verdict = (
+                    parse_moderation_response(response.json())
+                    if moderation_api
+                    else parse_response(response.json(), channel.response_format)
+                )
                 verdict._channel_name, verdict._model_name = label, channel.model
                 logger.info(
                     f"图片审核 API 响应有效{scope}：channel={label}，model={channel.model}，"

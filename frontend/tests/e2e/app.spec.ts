@@ -265,3 +265,42 @@ test('QQ limits and ordered image review channels can be configured', async ({ p
   await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByRole('cell', { name: '仅图片审核', exact: true })).toBeVisible()
 })
+
+test('omni moderation automatically hides chat settings and saves the channel', async ({
+  page,
+}) => {
+  await login(page)
+  await page.goto('/#/admin/message-moderation')
+  await page.getByRole('button', { name: 'LLM 图片审核配置', exact: true }).click()
+  await expect(page.getByLabel('审核提示词', { exact: true })).not.toHaveValue('')
+  await page.getByRole('button', { name: '新增渠道', exact: true }).click()
+  await page.getByLabel('渠道名称', { exact: true }).fill('OpenAI 专用审核')
+  await page.getByLabel('多模态模型名称', { exact: true }).fill('vision')
+  await page.getByLabel('输出总预算（max_completion_tokens）', { exact: true }).fill('4096')
+  await page.getByLabel('服务商扩展参数（JSON）', { exact: true }).fill('{')
+  await page.getByLabel('多模态模型名称', { exact: true }).fill('omni-moderation-latest')
+  await expect(page.getByText(/已自动使用 Moderations 接口/)).toBeVisible()
+  await expect(page.getByLabel('输出模式', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('输出总预算（max_completion_tokens）', { exact: true })).toHaveCount(
+    0,
+  )
+  await expect(page.getByLabel('服务商扩展参数（JSON）', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('思考强度（reasoning_effort）', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('图片精细度', { exact: true })).toHaveCount(0)
+  while (await page.getByRole('button', { name: '上移', exact: true }).isEnabled()) {
+    await page.getByRole('button', { name: '上移', exact: true }).click()
+  }
+  await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'LLM 图片审核配置', exact: true }).click()
+  await expect(page.getByLabel('多模态模型名称', { exact: true })).toHaveValue(
+    'omni-moderation-latest',
+  )
+  await expect(page.getByText(/已自动使用 Moderations 接口/)).toBeVisible()
+  await page.getByLabel('多模态模型名称', { exact: true }).fill('vision')
+  await expect(page.getByLabel('输出总预算（max_completion_tokens）', { exact: true })).toHaveValue(
+    '4096',
+  )
+  await expect(page.getByLabel('服务商扩展参数（JSON）', { exact: true })).toHaveValue('{}')
+  await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
+})
