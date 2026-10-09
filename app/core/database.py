@@ -26,17 +26,32 @@ def _upgrade_sqlite_schema() -> None:
     if not settings.database_url.startswith("sqlite"):
         return
     inspector = inspect(engine)
-    if not inspector.has_table("message_moderation_rules"):
-        return
-    columns = {column["name"] for column in inspector.get_columns("message_moderation_rules")}
+    additions = {
+        "message_moderation_rules": {
+            "cloud_review_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "ocr_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "image_review_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+        "managed_groups": {
+            "min_qq_level": "INTEGER NOT NULL DEFAULT 0",
+            "max_wrong_answers": "INTEGER NOT NULL DEFAULT 0",
+            "wrong_answer_window_hours": "INTEGER NOT NULL DEFAULT 24",
+        },
+        "join_requests": {
+            "qq_level": "INTEGER",
+            "wrong_answer_count": "INTEGER NOT NULL DEFAULT 0",
+            "apply_status": "VARCHAR NOT NULL DEFAULT 'legacy'",
+            "apply_error": "VARCHAR NOT NULL DEFAULT ''",
+        },
+    }
     with engine.begin() as connection:
-        if "cloud_review_enabled" not in columns:
-            connection.execute(
-                text(
-                    "ALTER TABLE message_moderation_rules "
-                    "ADD COLUMN cloud_review_enabled BOOLEAN NOT NULL DEFAULT 0"
-                )
-            )
+        for table, additions_for_table in additions.items():
+            if not inspector.has_table(table):
+                continue
+            columns = {column["name"] for column in inspector.get_columns(table)}
+            for name, definition in additions_for_table.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
 
 
 def init_db() -> None:
@@ -56,6 +71,12 @@ def init_db() -> None:
             connection.execute(
                 text(f"CREATE INDEX IF NOT EXISTS ix_{table}_admin_page ON {table} ({columns})")
             )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_join_requests_failures "
+                "ON join_requests (group_id, user_id, created_at, result)"
+            )
+        )
     with Session(engine) as session:
         config = session.exec(select(TencentCloudTmsConfig)).first()
         if not config:

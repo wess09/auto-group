@@ -13,7 +13,12 @@ from sqlmodel import Session, select
 from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.models import Admin, AuditLog
-from app.schemas.admin import TencentCloudTmsConfigIn, TencentCloudTmsConfigOut
+from app.schemas.admin import (
+    TencentCloudTmsConfigIn,
+    TencentCloudTmsConfigOut,
+    ImageReviewConfigIn,
+    ImageReviewConfigOut,
+)
 from app.schemas.resources import LIST_MODELS, DETAIL_MODELS
 from app.schemas.rpc import (
     AuthInput,
@@ -45,6 +50,11 @@ from app.services import onebot
 from app.services.admin import dashboard, files, jobs, resources
 from app.services.admin.runtime import database, hub, valid_topic
 from app.services.tencentcloud_tms_config import get_tms_config, tms_config_out, update_tms_config
+from app.services.image_review_config import (
+    get_image_review_config,
+    image_review_config_out,
+    update_image_review_config,
+)
 
 router = APIRouter()
 
@@ -103,6 +113,27 @@ def cloud_write(session, params, admin_id):
     )
     session.commit()
     return tms_config_out(config)
+
+
+def image_review_read(session):
+    return image_review_config_out(get_image_review_config(session))
+
+
+def image_review_write(session, params, admin_id):
+    config = update_image_review_config(session, params)
+    session.add(
+        AuditLog(
+            admin_id=admin_id,
+            action="image-review.update",
+            target=str(config.id),
+            detail={
+                "enabled": config.enabled,
+                "channels": len(config.channels),
+            },
+        )
+    )
+    session.commit()
+    return image_review_config_out(config)
 
 
 def build_methods() -> dict[str, Method]:
@@ -206,6 +237,20 @@ def build_methods() -> dict[str, Method]:
 
     methods["cloud.update"] = Method(
         TencentCloudTmsConfigIn, config_write, True, TencentCloudTmsConfigOut
+    )
+
+    async def image_read(params, *_):
+        return await database(image_review_read)
+
+    async def image_write(params, admin_id, *_):
+        return await database(image_review_write, params, admin_id)
+
+    methods["image-review.get"] = Method(Input, image_read, output=ImageReviewConfigOut)
+    methods["image-review.update"] = Method(
+        ImageReviewConfigIn,
+        image_write,
+        True,
+        ImageReviewConfigOut,
     )
     return methods
 

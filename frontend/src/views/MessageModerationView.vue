@@ -1,6 +1,7 @@
 <template>
   <ResourceEditor resource="moderation">
     <template #header>
+      <ImageReviewSettings />
       <v-btn variant="tonal" :prepend-icon="mdiCloudOutline" @click="dialog = true">
         腾讯云配置
       </v-btn>
@@ -46,6 +47,7 @@
 import { reactive, ref, watch } from 'vue'
 import { mdiCloudOutline } from '@mdi/js'
 import ResourceEditor from '../components/ResourceEditor.vue'
+import ImageReviewSettings from '../components/ImageReviewSettings.vue'
 import QueryError from '../components/QueryError.vue'
 import { socket } from '../api/client'
 import { queryClient, useRpcQuery } from '../api/queries'

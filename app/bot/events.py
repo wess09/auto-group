@@ -10,9 +10,9 @@ from nonebot.adapters.onebot.v11 import (
     NoticeEvent,
 )
 
-from app.core.config import get_settings
 from app.services.group_sync import sync_one_group_info
 from app.services.message_moderation import moderate_group_message_detached
+from app.services.join_requests import process_join_request
 from app.services.admin import bot_data, jobs
 from app.services.admin.runtime import database
 
@@ -54,25 +54,16 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent) -> None:
     if event.request_type != "group" or event.sub_type != "add":
         return
     answer = extract_answer(getattr(event, "comment", "") or "")
-    decision = await database(bot_data.decide_join, event.group_id, event.user_id, answer)
-    await bot.call_api(
-        "set_group_add_request",
-        flag=event.flag,
-        sub_type=event.sub_type,
-        approve=decision["result"] == "approved",
-        reason=decision["reason"],
-        _timeout=get_settings().onebot_api_timeout_seconds,
-    )
-    await database(
-        bot_data.record_join,
+    await process_join_request(
+        bot,
         {
             "flag": event.flag,
             "group_id": event.group_id,
             "user_id": event.user_id,
             "answer_text": answer,
             "raw_event": event_to_dict(event),
-            **decision,
         },
+        event.sub_type,
     )
 
 

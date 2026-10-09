@@ -59,6 +59,13 @@ def render():
     }
     for create, patch in schemas.values():
         result += declaration(create.__name__, create) + declaration(patch.__name__, patch)
+    for model in (
+        admin.ImageReviewChannelIn,
+        admin.ImageReviewChannelOut,
+        admin.ImageReviewConfigIn,
+        admin.ImageReviewConfigOut,
+    ):
+        result += declaration(model.__name__, model)
     for name, models in (("ResourceRows", LIST_MODELS), ("ResourceDetails", DETAIL_MODELS)):
         result += f"export type {name} = {{\n"
         result += "".join(

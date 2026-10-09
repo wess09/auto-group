@@ -5,6 +5,8 @@ from typing import Any, ClassVar
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from app.services.image_review_policy import DEFAULT_IMAGE_REVIEW_PROMPT
+
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
@@ -46,6 +48,9 @@ class ManagedGroup(SQLModel, table=True):
     max_members: int = 0
     current_members: int = 0
     join_url: str = ""
+    min_qq_level: int = 0
+    max_wrong_answers: int = 0
+    wrong_answer_window_hours: int = 24
     redirect_message_template: str = (
         "请申请推荐群：{group_name}（{group_id}）。入群链接：{join_url}"
     )
@@ -78,6 +83,7 @@ class MessageModerationRule(SQLModel, table=True):
     patterns: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     cloud_review_enabled: bool = False
     ocr_enabled: bool = False
+    image_review_enabled: bool = False
     action: MessageModerationAction = MessageModerationAction.recall
     mute_duration_seconds: int = 600
     note: str = ""
@@ -107,12 +113,28 @@ class JoinRequest(SQLModel, table=True):
     user_id: int = Field(index=True)
     group_id: int = Field(index=True)
     answer_text: str = ""
+    qq_level: int | None = None
+    wrong_answer_count: int = 0
+    apply_status: str = "pending"
+    apply_error: str = ""
     matched_rule_id: int | None = None
     recommended_group_id: int | None = None
     result: str = "pending"
     reason: str = ""
     raw_event: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class ImageReviewConfig(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "image_review_config"
+
+    id: int | None = Field(default=None, primary_key=True)
+    enabled: bool = False
+    system_prompt: str = DEFAULT_IMAGE_REVIEW_PROMPT
+    min_confidence: float = 0.85
+    channels: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 class GroupMember(SQLModel, table=True):

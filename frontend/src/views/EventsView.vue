@@ -69,7 +69,10 @@ const headers = computed(() => {
           ['QQ', 'user_id'],
           ['群', 'group_id'],
           ['答案', 'answer_text'],
+          ['QQ 等级', 'qq_level'],
+          ['答错次数', 'wrong_answer_count'],
           ['结果', 'result'],
+          ['执行状态', 'apply_status'],
           ['原因', 'reason'],
         ]
       : tab.value === 'leaves'

@@ -28,14 +28,16 @@ RESOURCE_FIELDS = {
     "groups": (
         ManagedGroup,
         COMMON
-        + " group_id name priority enabled max_members current_members join_url redirect_message_template note",
+        + " group_id name priority enabled max_members current_members join_url min_qq_level"
+        + " max_wrong_answers wrong_answer_window_hours redirect_message_template note",
         "",
     ),
     "rules": (AnswerRule, COMMON + " name enabled group_id match_mode logic_mode patterns", ""),
     "moderation": (
         MessageModerationRule,
         COMMON
-        + " name enabled group_id patterns cloud_review_enabled ocr_enabled action mute_duration_seconds note",
+        + " name enabled group_id patterns cloud_review_enabled ocr_enabled image_review_enabled"
+        + " action mute_duration_seconds note",
         "",
     ),
     "blacklist": (JoinBlacklist, COMMON + " user_id enabled reason note", ""),
@@ -57,7 +59,8 @@ RESOURCE_FIELDS = {
     ),
     "joins": (
         JoinRequest,
-        "id flag user_id group_id answer_text matched_rule_id recommended_group_id result reason created_at",
+        "id flag user_id group_id answer_text qq_level wrong_answer_count apply_status apply_error"
+        + " matched_rule_id recommended_group_id result reason created_at",
         "raw_event",
     ),
     "leaves": (LeaveEvent, "id group_id user_id operator_id sub_type created_at", "raw_event"),

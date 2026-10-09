@@ -86,6 +86,8 @@
                 v-model="form[field.key]"
                 :label="field.label"
                 :type="field.type === 'number' ? 'number' : 'text'"
+                :hint="field.hint"
+                :persistent-hint="!!field.hint"
                 :disabled="!!editingId && (field.key === 'group_id' || field.key === 'user_id')"
                 :rules="field.required ? requiredRules : []"
               />

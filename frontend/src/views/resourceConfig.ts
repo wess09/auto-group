@@ -28,7 +28,7 @@ const patterns: Field = {
 export const configs: Record<Editable, Config> = {
   groups: {
     title: '群配置',
-    subtitle: '设置群优先级、容量和分流入口。优先级越高，越优先推荐。',
+    subtitle: '设置群优先级、容量、QQ 等级门槛和答错自动拉黑。优先级越高，越优先推荐。',
     fields: [
       { key: 'group_id', label: '群号', type: 'number', required: true },
       { key: 'name', label: '群名称' },
@@ -37,6 +37,24 @@ export const configs: Record<Editable, Config> = {
       { key: 'max_members', label: '最大成员数（0 表示不限）', type: 'number' },
       { key: 'current_members', label: '当前成员数', type: 'number' },
       { key: 'join_url', label: '入群链接' },
+      {
+        key: 'min_qq_level',
+        label: '最低 QQ 等级（0 表示不限）',
+        type: 'number',
+        hint: '无法取得等级时拒绝本次申请，不累计答错次数',
+      },
+      {
+        key: 'max_wrong_answers',
+        label: '答错拉黑次数（0 表示关闭）',
+        type: 'number',
+        hint: '本群内达到此次数时加入全局加群黑名单；通过验证或停用黑名单后重新计数',
+      },
+      {
+        key: 'wrong_answer_window_hours',
+        label: '答错统计窗口（小时）',
+        type: 'number',
+        hint: '只统计窗口内的答案错误；等级不足、分流和接口异常不计入',
+      },
       {
         key: 'redirect_message_template',
         label: '分流提示模板',
@@ -53,6 +71,9 @@ export const configs: Record<Editable, Config> = {
       max_members: 0,
       current_members: 0,
       join_url: '',
+      min_qq_level: 0,
+      max_wrong_answers: 0,
+      wrong_answer_window_hours: 24,
       redirect_message_template: '请申请推荐群：{group_name}（{group_id}）。入群链接：{join_url}',
       note: '',
     },
@@ -63,6 +84,8 @@ export const configs: Record<Editable, Config> = {
       ['优先级', 'priority'],
       ['成员数', 'current_members'],
       ['容量', 'max_members'],
+      ['最低等级', 'min_qq_level'],
+      ['答错上限', 'max_wrong_answers'],
       ['状态', 'enabled'],
       ['操作', 'actions'],
     ]),
@@ -149,14 +172,15 @@ export const configs: Record<Editable, Config> = {
   },
   moderation: {
     title: '消息审查',
-    subtitle: '配置正则、图片 OCR 与腾讯云文本二次审核，按规则撤回消息或禁言。',
+    subtitle: '配置正则、图片 OCR、腾讯云文本审核与 LLM 图片审核，按规则撤回或禁言。',
     fields: [
       { key: 'name', label: '规则名称', required: true },
       enabled,
       group,
-      patterns,
+      { ...patterns, required: false, hint: '每行一条 Python 正则；只用 LLM 图片审核时可留空' },
       { key: 'cloud_review_enabled', label: '腾讯云 AI 二次审核', type: 'switch' },
       { key: 'ocr_enabled', label: '图片 OCR', type: 'switch' },
+      { key: 'image_review_enabled', label: 'LLM 多模态图片审核（无需正则命中）', type: 'switch' },
       {
         key: 'action',
         label: '处理动作',
@@ -177,6 +201,7 @@ export const configs: Record<Editable, Config> = {
       patterns: '',
       cloud_review_enabled: false,
       ocr_enabled: false,
+      image_review_enabled: false,
       action: 'recall',
       mute_duration_seconds: 600,
       note: '',
@@ -187,6 +212,7 @@ export const configs: Record<Editable, Config> = {
       ['表达式', 'patterns'],
       ['AI 审核', 'cloud_review_enabled'],
       ['OCR', 'ocr_enabled'],
+      ['图片审核', 'image_review_enabled'],
       ['动作', 'action'],
       ['状态', 'enabled'],
       ['操作', 'actions'],

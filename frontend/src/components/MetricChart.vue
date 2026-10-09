@@ -72,6 +72,8 @@ function update() {
       approved: '已通过',
       rejected: '已拒绝',
       redirected: '已分流',
+      level_rejected: '等级不足',
+      level_unknown: '等级获取失败',
       pending: '待处理',
       ignored: '已忽略',
     }

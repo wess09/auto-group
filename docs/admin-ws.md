@@ -59,6 +59,7 @@
 | `dashboard.rankings` | `{}` → 群人数、活跃群及活跃成员排行 |
 | `dashboard.recent` | `{}` → 最近退群和操作记录 |
 | `cloud.get / cloud.update` | `{}` / 腾讯云配置 → 脱敏配置；SecretKey 不回显 |
+| `image-review.get / image-review.update` | `{}` / `{enabled,system_prompt,min_confidence,channels}` → 脱敏配置；按渠道 ID 保留密钥，API Key 不回显，空值保留，渠道的 `clear_api_key=true` 清除 |
 | `files.browse` | `{group_id,folder_id?,page?,page_size?,q?}` → 目录分页 |
 | `files.url` | `{group_id,file_id,busid}` → `{url}` |
 | `jobs.findByRequestId` | `{request_id}` → 当前管理员的 `JobRef` 或 `null` |
@@ -74,7 +75,7 @@
 {"v":1,"id":"subscribe-1","method":"subscribe","params":{"topics":["groups","files:1001","jobs:8"]}}
 ```
 
-`unsubscribe` 使用相同参数；每个连接最多 64 个主题，响应为 `{ok:true}`。`ping` 返回 `{pong:true}`。资源主题与资源名称一致，另支持 `activity`、`dedupe`、`cloud`、五个 `dashboard.*` 分区；`<resource>:<group_id>` 限定群，`jobs:<job_id>` 限定任务。
+`unsubscribe` 使用相同参数；每个连接最多 64 个主题，响应为 `{ok:true}`。`ping` 返回 `{pong:true}`。资源主题与资源名称一致，另支持 `activity`、`dedupe`、`cloud`、`image-review`、五个 `dashboard.*` 分区；`<resource>:<group_id>` 限定群，`jobs:<job_id>` 限定任务。
 
 ```json
 {"v":1,"type":"event","topic":"files:1001","payload":{"group_id":1001}}

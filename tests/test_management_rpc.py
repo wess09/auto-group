@@ -318,6 +318,40 @@ def test_page_limits_and_unknown_fields():
         PageInput(extra="bad")
 
 
+def test_image_channels_mask_keys_preserve_them_by_id_and_clear_explicitly(client, db):
+    with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
+        authenticate(ws)
+        data = {
+            "enabled": True,
+            "channels": [
+                {"id": "a", "name": "主渠道", "model": "vision-a", "api_key": "secret-a"},
+                {"id": "b", "name": "备用", "model": "vision-b", "api_key": "secret-b"},
+            ],
+        }
+        saved = call(ws, "image-review.update", data)["result"]
+        assert all(channel["api_key_configured"] for channel in saved["channels"])
+        assert "secret-a" not in str(saved) and "secret-b" not in str(saved)
+        read = call(ws, "image-review.get")["result"]
+        assert read == saved
+        data["channels"].reverse()
+        for channel in data["channels"]:
+            channel["api_key"] = ""
+        call(ws, "image-review.update", data)
+        from app.models import ImageReviewConfig
+
+        with Session(db) as session:
+            config = session.exec(select(ImageReviewConfig)).one()
+            assert [channel["api_key"] for channel in config.channels] == ["secret-b", "secret-a"]
+            audits = session.exec(
+                select(AuditLog).where(AuditLog.action == "image-review.update")
+            ).all()
+            assert "secret-a" not in str([row.detail for row in audits])
+        data["channels"][0]["clear_api_key"] = True
+        saved = call(ws, "image-review.update", data)["result"]
+        assert not saved["channels"][0]["api_key_configured"]
+        assert saved["channels"][1]["api_key_configured"]
+
+
 def test_crud_updates_global_rule_and_audit_in_same_transaction(db):
     with Session(db) as session:
         row = resources.write_resource(

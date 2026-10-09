@@ -10,6 +10,9 @@ export type ManagedGroupListOut = {
   max_members: number
   current_members: number
   join_url: string
+  min_qq_level: number
+  max_wrong_answers: number
+  wrong_answer_window_hours: number
   redirect_message_template: string
   note: string
 }
@@ -34,6 +37,7 @@ export type MessageModerationRuleListOut = {
   patterns: string[]
   cloud_review_enabled: boolean
   ocr_enabled: boolean
+  image_review_enabled: boolean
   action: 'recall' | 'mute' | 'recall_and_mute'
   mute_duration_seconds: number
   note: string
@@ -93,6 +97,10 @@ export type JoinRequestListOut = {
   user_id: number
   group_id: number
   answer_text: string
+  qq_level: number | null
+  wrong_answer_count: number
+  apply_status: string
+  apply_error: string
   matched_rule_id: number | null
   recommended_group_id: number | null
   result: string
@@ -155,6 +163,9 @@ export type ManagedGroupDetailOut = {
   max_members: number
   current_members: number
   join_url: string
+  min_qq_level: number
+  max_wrong_answers: number
+  wrong_answer_window_hours: number
   redirect_message_template: string
   note: string
 }
@@ -179,6 +190,7 @@ export type MessageModerationRuleDetailOut = {
   patterns: string[]
   cloud_review_enabled: boolean
   ocr_enabled: boolean
+  image_review_enabled: boolean
   action: 'recall' | 'mute' | 'recall_and_mute'
   mute_duration_seconds: number
   note: string
@@ -241,6 +253,10 @@ export type JoinRequestDetailOut = {
   user_id: number
   group_id: number
   answer_text: string
+  qq_level: number | null
+  wrong_answer_count: number
+  apply_status: string
+  apply_error: string
   matched_rule_id: number | null
   recommended_group_id: number | null
   result: string
@@ -305,6 +321,9 @@ export type ManagedGroupIn = {
   max_members?: number
   current_members?: number
   join_url?: string
+  min_qq_level?: number
+  max_wrong_answers?: number
+  wrong_answer_window_hours?: number
   redirect_message_template?: string
   note?: string
 }
@@ -315,6 +334,9 @@ export type ManagedGroupPatch = {
   max_members?: number | null
   current_members?: number | null
   join_url?: string | null
+  min_qq_level?: number | null
+  max_wrong_answers?: number | null
+  wrong_answer_window_hours?: number | null
   redirect_message_template?: string | null
   note?: string | null
 }
@@ -347,6 +369,7 @@ export type MessageModerationRuleIn = {
   patterns?: string[]
   cloud_review_enabled?: boolean
   ocr_enabled?: boolean
+  image_review_enabled?: boolean
   action?: 'recall' | 'mute' | 'recall_and_mute'
   mute_duration_seconds?: number
   note?: string
@@ -358,12 +381,82 @@ export type MessageModerationRulePatch = {
   patterns?: string[] | null
   cloud_review_enabled?: boolean | null
   ocr_enabled?: boolean | null
+  image_review_enabled?: boolean | null
   action?: 'recall' | 'mute' | 'recall_and_mute' | null
   mute_duration_seconds?: number | null
   note?: string | null
 }
 export type DedupeWhitelistIn = { user_id: number; note?: string; enabled?: boolean }
 export type DedupeWhitelistPatch = { note?: string | null; enabled?: boolean | null }
+export type ImageReviewChannelIn = {
+  id: string
+  name?: string
+  enabled?: boolean
+  base_url?: string
+  model?: string
+  response_format?: 'tool_call' | 'json_schema' | 'json_object' | 'none'
+  reasoning_effort?: '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  max_completion_tokens?: number
+  extra_body?: Record<string, unknown>
+  image_detail?: 'auto' | 'low' | 'high' | 'original'
+  timeout_seconds?: number
+  api_key?: string
+  clear_api_key?: boolean
+}
+export type ImageReviewChannelOut = {
+  id: string
+  name?: string
+  enabled?: boolean
+  base_url?: string
+  model?: string
+  response_format?: 'tool_call' | 'json_schema' | 'json_object' | 'none'
+  reasoning_effort?: '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  max_completion_tokens?: number
+  extra_body?: Record<string, unknown>
+  image_detail?: 'auto' | 'low' | 'high' | 'original'
+  timeout_seconds?: number
+  api_key_configured: boolean
+}
+export type ImageReviewConfigIn = {
+  enabled?: boolean
+  system_prompt?: string
+  min_confidence?: number
+  channels?: {
+    id: string
+    name?: string
+    enabled?: boolean
+    base_url?: string
+    model?: string
+    response_format?: 'tool_call' | 'json_schema' | 'json_object' | 'none'
+    reasoning_effort?: '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    max_completion_tokens?: number
+    extra_body?: Record<string, unknown>
+    image_detail?: 'auto' | 'low' | 'high' | 'original'
+    timeout_seconds?: number
+    api_key?: string
+    clear_api_key?: boolean
+  }[]
+}
+export type ImageReviewConfigOut = {
+  enabled: boolean
+  system_prompt: string
+  default_system_prompt?: string
+  min_confidence: number
+  channels: {
+    id: string
+    name?: string
+    enabled?: boolean
+    base_url?: string
+    model?: string
+    response_format?: 'tool_call' | 'json_schema' | 'json_object' | 'none'
+    reasoning_effort?: '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    max_completion_tokens?: number
+    extra_body?: Record<string, unknown>
+    image_detail?: 'auto' | 'low' | 'high' | 'original'
+    timeout_seconds?: number
+    api_key_configured: boolean
+  }[]
+}
 export type ResourceRows = {
   groups: ManagedGroupListOut & { [key: string]: unknown }
   rules: AnswerRuleListOut & { [key: string]: unknown }

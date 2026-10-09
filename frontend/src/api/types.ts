@@ -143,6 +143,8 @@ export type ApiMethods = {
     Omit<CloudConfig, 'secret_key_configured'> & { secret_key: string },
     CloudConfig
   >
+  'image-review.get': Method<Record<string, never>, ImageReviewConfigOut>
+  'image-review.update': Method<ImageReviewConfigIn, ImageReviewConfigOut>
   'dashboard.summary': Method<Record<string, never>, Summary>
   'dashboard.trends': Method<Record<string, never>, { items: Trend[] }>
   'dashboard.breakdown': Method<
@@ -173,4 +175,5 @@ export type ApiMethods = {
   >
 }
 import type { ResourceRows, ResourceDetails, ResourceInputs } from './generated'
+import type { ImageReviewConfigIn, ImageReviewConfigOut } from './generated'
 export type { ResourceRows, ResourceDetails, ResourceInputs } from './generated'

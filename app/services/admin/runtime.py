@@ -89,6 +89,7 @@ MODEL_TOPICS = {
     "dedupe_actions": "actions",
     "dedupe_jobs": "dedupe",
     "tencentcloud_tms_config": "cloud",
+    "image_review_config": "image-review",
 }
 TOPICS = set(MODEL_TOPICS.values()) | {
     "dashboard.summary",
