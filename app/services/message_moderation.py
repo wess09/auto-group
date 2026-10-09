@@ -125,16 +125,56 @@ def _extract_image_urls(event: GroupMessageLike) -> list[str]:
     return urls
 
 
+def _format_mute_duration(seconds: int) -> str:
+    parts = []
+    for unit_seconds, label in [(86400, "天"), (3600, "小时"), (60, "分钟"), (1, "秒")]:
+        count, seconds = divmod(seconds, unit_seconds)
+        if count:
+            parts.append(f"{count}{label}")
+    return "".join(parts) or "0秒"
+
+
+async def _send_image_moderation_warning(
+    rule: MessageModerationRule,
+    group_id: int,
+    user_id: int,
+    message_id: int,
+    verdict: image_moderation.ImageVerdict,
+    *,
+    recalled: bool,
+    muted: bool,
+) -> None:
+    action_text = "已撤回并禁言" if recalled and muted else "已撤回" if recalled else "已禁言"
+    if muted:
+        action_text += f" {_format_mute_duration(rule.mute_duration_seconds)}"
+    reason = " ".join(verdict.reason.split())
+    text = f"警告：\n因模型检测到：{reason}\n置信度：{verdict.confidence:.1%}\n{action_text}"
+    context = f"group={group_id}, user={user_id}, message={message_id}"
+    try:
+        await onebot.send_group_reply(group_id, message_id, text)
+    except Exception as exc:
+        logger.warning(f"图片审核警告回复失败（{context}）：{type(exc).__name__}")
+    else:
+        logger.info(f"图片审核警告已回复（{context}）：{action_text}")
+
+
 async def apply_moderation_action(
-    rule: MessageModerationRule, group_id: int, user_id: int, message_id: int
+    rule: MessageModerationRule,
+    group_id: int,
+    user_id: int,
+    message_id: int,
+    *,
+    verdict: image_moderation.ImageVerdict | None = None,
 ) -> None:
     errors: list[str] = []
+    recalled = muted = False
     if rule.action in {
         MessageModerationAction.recall,
         MessageModerationAction.recall_and_mute,
     }:
         try:
             await onebot.delete_msg(message_id)
+            recalled = True
         except Exception as exc:  # noqa: BLE001
             errors.append(f"撤回失败：{exc}")
     if rule.action in {
@@ -143,8 +183,13 @@ async def apply_moderation_action(
     }:
         try:
             await onebot.set_group_ban(group_id, user_id, rule.mute_duration_seconds)
+            muted = True
         except Exception as exc:  # noqa: BLE001
             errors.append(f"禁言失败：{exc}")
+    if verdict is not None and (recalled or muted):
+        await _send_image_moderation_warning(
+            rule, group_id, user_id, message_id, verdict, recalled=recalled, muted=muted
+        )
     if errors:
         raise RuntimeError("；".join(errors))
 
@@ -243,7 +288,11 @@ async def _moderate_snapshot(
                 )
                 try:
                     await apply_moderation_action(
-                        image_rule, event.group_id, event.user_id, event.message_id
+                        image_rule,
+                        event.group_id,
+                        event.user_id,
+                        event.message_id,
+                        verdict=verdict,
                     )
                 except Exception as exc:
                     logger.error(

@@ -147,6 +147,17 @@ async def send_group_message(group_id: int, message: str) -> Any:
     return await call_onebot("send_group_msg", group_id=group_id, message=message)
 
 
+async def send_group_reply(group_id: int, message_id: int, text: str) -> Any:
+    return await call_onebot(
+        "send_group_msg",
+        group_id=group_id,
+        message=[
+            {"type": "reply", "data": {"id": str(message_id)}},
+            {"type": "text", "data": {"text": text}},
+        ],
+    )
+
+
 async def get_essence_msg_list(group_id: int) -> Any:
     return await call_onebot("get_essence_msg_list", group_id=group_id)
 

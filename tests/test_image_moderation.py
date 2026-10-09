@@ -205,7 +205,7 @@ async def test_vision_after_cloud_pass_group_priority_multiple_images_and_one_ac
             violates=True, confidence=0.4 if len(reviews) == 1 else 0.96, reason="可见证据"
         )
 
-    async def apply(rule, *args):
+    async def apply(rule, *args, **kwargs):
         actions.append(rule.name)
 
     async def cloud(*args, **kw):
@@ -242,7 +242,7 @@ async def test_invalid_vision_response_does_not_apply_action(monkeypatch):
     async def review(*args, **kwargs):
         return None
 
-    async def fail_action(*args):
+    async def fail_action(*args, **kwargs):
         pytest.fail("invalid verdict must not apply an action")
 
     monkeypatch.setattr(image_moderation, "review_image", review)

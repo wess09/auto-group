@@ -67,7 +67,7 @@ async def test_skipping_images_explains_why_without_calling_api(monkeypatch, log
     async def unexpected_review(*args, **kwargs):
         pytest.fail("skipped images must not call the API")
 
-    async def action(*args):
+    async def action(*args, **kwargs):
         pass
 
     monkeypatch.setattr(image_moderation, "review_image", unexpected_review)
@@ -95,7 +95,7 @@ async def test_completed_verdict_and_action_result_are_distinct(
         verdict._channel_name, verdict._model_name = "主渠道", "vision"
         return verdict
 
-    async def action(*args):
+    async def action(*args, **kwargs):
         actions.append(args)
         if fail_action:
             raise RuntimeError("private upstream body")

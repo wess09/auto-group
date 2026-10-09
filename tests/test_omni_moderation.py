@@ -214,7 +214,7 @@ async def test_failover_between_moderations_and_chat_uses_each_channels_protocol
             },
         )
 
-    async def action(*args):
+    async def action(*args, **kwargs):
         actions.append(args)
 
     mock_api(monkeypatch, handler)
@@ -245,7 +245,7 @@ async def test_valid_omni_verdict_stops_failover_and_logs_category_score(
         requests.append(request)
         return httpx.Response(200, json=moderation_reply(flagged, score))
 
-    async def action(*args):
+    async def action(*args, **kwargs):
         actions.append(args)
 
     mock_api(monkeypatch, handler)
