@@ -1,6 +1,7 @@
 """OpenAI-compatible vision review. Malformed/failed responses only produce logs."""
 
 import asyncio
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -132,17 +133,25 @@ def parse_response(data: dict, response_format: str = "json_schema") -> ImageVer
 
 
 async def review_image(
-    config: ImageReviewConfig, image_url: str, text: str = ""
+    config: ImageReviewConfig, image_url: str, text: str = "", *, context: str = ""
 ) -> ImageVerdict | None:
+    scope = f"（{context}）" if context else ""
     if not config.enabled:
+        logger.info(f"图片审核跳过{scope}：全局图片审核服务未启用")
         return None
+    logger.info(f"图片审核等待调用{scope}：等待可用的 API 并发名额")
     async with review_semaphore:
         for data in config.channels:
             if not data.get("enabled", True):
                 continue
             label = data.get("name") or data.get("id", "未命名")
+            started = monotonic()
             try:
                 channel = ImageReviewChannelIn.model_validate(data)
+                logger.info(
+                    f"图片审核 API 请求{scope}：channel={label}，model={channel.model}，"
+                    f"mode={channel.response_format}，timeout={channel.timeout_seconds}s"
+                )
                 headers = {"Content-Type": "application/json"}
                 if channel.api_key:
                     headers["Authorization"] = f"Bearer {channel.api_key}"
@@ -163,11 +172,16 @@ async def review_image(
                     raise ValueError("审核响应过大")
                 verdict = parse_response(response.json(), channel.response_format)
                 verdict._channel_name, verdict._model_name = label, channel.model
+                logger.info(
+                    f"图片审核 API 响应有效{scope}：channel={label}，model={channel.model}，"
+                    f"耗时={monotonic() - started:.2f}s"
+                )
                 # Any valid verdict ends failover, including safe/low-confidence results.
                 return verdict
             except httpx.HTTPStatusError as exc:
                 logger.warning(
-                    f"图片审核渠道 {label} 失败：HTTP {exc.response.status_code}，尝试下一渠道"
+                    f"图片审核渠道失败{scope}：channel={label}，HTTP {exc.response.status_code}，"
+                    f"耗时={monotonic() - started:.2f}s，尝试下一启用渠道（如有）"
                 )
             except (
                 httpx.HTTPError,
@@ -178,6 +192,9 @@ async def review_image(
                 TypeError,
             ) as exc:
                 # Do not log upstream bodies, URLs with tokens, or credentials.
-                logger.warning(f"图片审核渠道 {label} 失败：{type(exc).__name__}，尝试下一渠道")
-    logger.warning("图片审核无可用渠道或全部渠道失败，跳过处理")
+                logger.warning(
+                    f"图片审核渠道失败{scope}：channel={label}，{type(exc).__name__}，"
+                    f"耗时={monotonic() - started:.2f}s，尝试下一启用渠道（如有）"
+                )
+    logger.warning(f"图片审核失败{scope}：无可用渠道或全部渠道失败，跳过处理")
     return None

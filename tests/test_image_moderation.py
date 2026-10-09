@@ -199,7 +199,7 @@ async def test_vision_after_cloud_pass_group_priority_multiple_images_and_one_ac
     monkeypatch.setattr(runtime, "engine", engine)
     actions, reviews = [], []
 
-    async def review(config, url, text):
+    async def review(config, url, text, **kwargs):
         reviews.append(url)
         return ImageVerdict(
             violates=True, confidence=0.4 if len(reviews) == 1 else 0.96, reason="可见证据"
@@ -239,7 +239,7 @@ async def test_invalid_vision_response_does_not_apply_action(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
 
-    async def review(*args):
+    async def review(*args, **kwargs):
         return None
 
     async def fail_action(*args):

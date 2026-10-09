@@ -82,6 +82,19 @@ def _find_matching_ocr_rule(
     return None
 
 
+def has_image_segments(event: GroupMessageLike) -> bool:
+    """Also identify image segments whose URL is unavailable."""
+    return any(
+        (getattr(seg, "type", None) or (seg.get("type") if isinstance(seg, dict) else None))
+        == "image"
+        for seg in (getattr(event, "message", None) or [])
+    )
+
+
+def message_context(event: GroupMessageLike) -> str:
+    return f"group={event.group_id}, user={event.user_id}, message={event.message_id}"
+
+
 def _extract_image_urls(event: GroupMessageLike) -> list[str]:
     """从消息事件中提取所有图片的 URL。"""
     urls: list[str] = []
@@ -107,8 +120,8 @@ def _extract_image_urls(event: GroupMessageLike) -> list[str]:
                 ):
                     if url not in urls:
                         urls.append(url)
-    except (TypeError, AttributeError) as e:
-        logger.warning(f"提取图片报错: {e}")
+    except (TypeError, AttributeError) as exc:
+        logger.warning(f"提取图片失败（{message_context(event)}）：{type(exc).__name__}")
     return urls
 
 
@@ -139,6 +152,8 @@ async def apply_moderation_action(
 async def _moderate_snapshot(
     event: GroupMessageLike, rows: list[dict], config_data: dict, image_config_data: dict
 ) -> MessageModerationRule | None:
+    has_images = has_image_segments(event)
+    context = message_context(event)
     rules = [MessageModerationRule(**row) for row in rows]
     config = TencentCloudTmsConfig(**config_data)
     image_config = ImageReviewConfig(**image_config_data)
@@ -161,15 +176,24 @@ async def _moderate_snapshot(
     for rule in rules:
         if message_text and message_matches_rule(rule, message_text):
             if await apply(rule, message_text):
+                if has_images:
+                    logger.info(f"图片审核跳过（{context}）：文本规则已执行动作，rule={rule.id}")
                 return rule
             break
 
     ocr_rules = [rule for rule in rules if rule.ocr_enabled]
     image_rule = next((rule for rule in rules if rule.image_review_enabled), None)
+    if has_images and not image_rule:
+        logger.info(
+            f"图片审核跳过（{context}）：消息审查中没有对当前群生效且已启用"
+            "「LLM 多模态图片审核」的规则"
+        )
     if not ocr_rules and not image_rule:
         return None
     image_urls = _extract_image_urls(event)
     if not image_urls:
+        if has_images and image_rule:
+            logger.warning(f"图片审核跳过（{context}）：图片消息没有可用的图片 URL")
         return None
     if ocr_rules:
         from app.services.ocr import ocr_image_from_url
@@ -183,33 +207,58 @@ async def _moderate_snapshot(
             for rule in ocr_rules:
                 if text and message_matches_rule(rule, text):
                     if await apply(rule, text):
+                        if image_rule:
+                            logger.info(
+                                f"图片审核跳过（{context}）：OCR 规则已执行动作，rule={rule.id}"
+                            )
                         return rule
                     break
 
     # Vision review is independent of regex/OCR/cloud text review.
     if image_rule and image_config.enabled:
+        logger.info(
+            f"图片审核开始（{context}）：rule={image_rule.id}，图片数={len(image_urls)}，"
+            f"最低置信度={image_config.min_confidence}"
+        )
         for index, url in enumerate(image_urls, start=1):
-            verdict = await image_moderation.review_image(image_config, url, message_text)
-            context = (
-                f"group={event.group_id}, user={event.user_id}, message={event.message_id}, "
-                f"image={index}"
+            image_context = f"{context}, image={index}/{len(image_urls)}"
+            verdict = await image_moderation.review_image(
+                image_config, url, message_text, context=image_context
             )
             if verdict is None:
-                logger.warning(f"图片审核跳过处理（{context}）")
+                logger.warning(f"图片审核失败（{image_context}）：没有有效审核结果，跳过处理")
                 continue
             trigger = verdict.violates and verdict.confidence >= image_config.min_confidence
             logger.info(
-                f"图片审核（{context}, channel={verdict._channel_name}, model={verdict._model_name}）："
+                f"图片审核完成（{image_context}, channel={verdict._channel_name}, "
+                f"model={verdict._model_name}）："
                 f"违规={verdict.violates}，"
-                f"置信度={verdict.confidence}，触发动作={trigger}，原因={verdict.reason}"
+                f"置信度={verdict.confidence}，触发动作={trigger}，原因={verdict.reason!r}"
             )
             if trigger:
-                await apply_moderation_action(
-                    image_rule, event.group_id, event.user_id, event.message_id
+                logger.info(
+                    f"图片审核执行动作（{image_context}）：rule={image_rule.id}，"
+                    f"action={image_rule.action.value}"
+                )
+                try:
+                    await apply_moderation_action(
+                        image_rule, event.group_id, event.user_id, event.message_id
+                    )
+                except Exception as exc:
+                    logger.error(
+                        f"图片审核动作失败（{image_context}）：action={image_rule.action.value}，"
+                        f"{type(exc).__name__}"
+                    )
+                    raise
+                logger.info(
+                    f"图片审核动作完成（{image_context}）：action={image_rule.action.value}，"
+                    "结束本条消息的审核"
                 )
                 return image_rule
+            reason = "模型判定不违规" if not verdict.violates else "置信度未达到阈值"
+            logger.info(f"图片审核不执行动作（{image_context}）：{reason}")
     elif image_rule:
-        logger.warning("已开启图片审核规则，但图片审核服务未启用，跳过处理")
+        logger.warning(f"图片审核跳过（{context}）：全局图片审核服务未启用")
     return None
 
 

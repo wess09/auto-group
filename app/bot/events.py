@@ -2,7 +2,7 @@ from typing import Any
 
 import asyncio
 
-from nonebot import on_message, on_notice, on_request
+from nonebot import logger, on_message, on_notice, on_request
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
@@ -11,7 +11,11 @@ from nonebot.adapters.onebot.v11 import (
 )
 
 from app.services.group_sync import sync_one_group_info
-from app.services.message_moderation import moderate_group_message_detached
+from app.services.message_moderation import (
+    has_image_segments,
+    message_context,
+    moderate_group_message_detached,
+)
 from app.services.join_requests import process_join_request
 from app.services.admin import bot_data, jobs
 from app.services.admin.runtime import database
@@ -72,6 +76,10 @@ activity_lock = asyncio.Lock()
 
 @message_matcher.handle()
 async def handle_group_message(event: GroupMessageEvent) -> None:
+    has_images = has_image_segments(event)
+    context = message_context(event)
+    if has_images:
+        logger.info(f"图片审核收到图片消息（{context}）")
     sender = getattr(event, "sender", None)
     async with activity_lock:
         managed = await database(
@@ -84,8 +92,12 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
     if managed:
         try:
             await moderate_group_message_detached(event)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Upstream exceptions can contain signed URLs, keys or response bodies.
+            label = "图片审核" if has_images else "消息审核"
+            logger.error(f"{label}异常（{context}）：{type(exc).__name__}，已停止处理")
+    elif has_images:
+        logger.info(f"图片审核跳过（{context}）：该群不在受管理群配置中")
 
 
 @notice_matcher.handle()
