@@ -98,10 +98,10 @@ def event(text="普通消息", *, message_id=100, user_id=42, group_id=1001):
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("/大记忆清除数", 500),
-        (" /大记忆清除数  \n", 500),
-        ("/大记忆清除数 1", 1),
-        ("/大记忆清除数 20000", 20000),
+        ("/大记忆清除术", 500),
+        (" /大记忆清除术  \n", 500),
+        ("/大记忆清除术 1", 1),
+        ("/大记忆清除术 20000", 20000),
     ],
 )
 def test_command_count(text, expected):
@@ -112,11 +112,11 @@ def test_command_count(text, expected):
 @pytest.mark.parametrize("argument", ["0", "-1", "20001", "1.5", "abc", "10 20", "9" * 1000])
 def test_invalid_count(argument):
     with pytest.raises(ValueError):
-        bulk_recall.parse_count("/大记忆清除数 " + argument)
+        bulk_recall.parse_count("/大记忆清除术 " + argument)
 
 
 def test_command_must_start_at_text_boundary():
-    for text in ("普通文字 /大记忆清除数", "大记忆清除数", "/大记忆清除数字"):
+    for text in ("普通文字 /大记忆清除术", "大记忆清除术", "/大记忆清除术后缀"):
         assert not bulk_recall.is_recall_command(text)
 
 
@@ -249,7 +249,7 @@ async def test_concurrency_limit_is_shared_across_groups(cache):
 async def test_disabled_and_unknown_admins_cannot_recall(cache, db, user_id):
     record(cache, 1)
     bot = FakeBot()
-    assert await bulk_recall.handle_message(bot, event("/大记忆清除数", user_id=user_id))
+    assert await bulk_recall.handle_message(bot, event("/大记忆清除术", user_id=user_id))
     assert bot.calls == [] and "没有批量撤回权限" in bot.replies[0]
     assert not bulk_recall.active_groups
 
@@ -267,13 +267,13 @@ async def test_command_runs_in_background_and_reports_audit_and_duplicate(cache,
         await run_command(*args)
 
     monkeypatch.setattr(bulk_recall, "run_command", held_command)
-    message = event("/大记忆清除数 3")
+    message = event("/大记忆清除术 3")
     assert await bulk_recall.handle_message(bot, message)
     assert bulk_recall.active_groups == {("123", 1001)}
     running = list(jobs.tasks)
     assert await bulk_recall.handle_message(bot, message)
     assert list(jobs.tasks) == running
-    assert await bulk_recall.handle_message(bot, event("/大记忆清除数", message_id=101))
+    assert await bulk_recall.handle_message(bot, event("/大记忆清除术", message_id=101))
     assert any("正在执行" in text for text in bot.replies)
     release.set()
     await asyncio.gather(*running)
@@ -292,10 +292,10 @@ async def test_default_count_and_empty_cache(cache, db, monkeypatch):
     for message_id in range(1, 602):
         record(cache, message_id)
     bot = FakeBot()
-    await bulk_recall.handle_message(bot, event("/大记忆清除数", message_id=1000))
+    await bulk_recall.handle_message(bot, event("/大记忆清除术", message_id=1000))
     await asyncio.gather(*list(jobs.tasks))
     assert len(bot.calls) == 500 and set(bot.calls) == set(range(102, 602))
-    await bulk_recall.handle_message(bot, event("/大记忆清除数", message_id=1001, group_id=3003))
+    await bulk_recall.handle_message(bot, event("/大记忆清除术", message_id=1001, group_id=3003))
     await asyncio.gather(*list(jobs.tasks))
     assert "只有 0 条" in bot.replies[-1]
 
@@ -303,7 +303,7 @@ async def test_default_count_and_empty_cache(cache, db, monkeypatch):
 @pytest.mark.asyncio
 async def test_invalid_command_does_not_start_task(cache, db):
     bot = FakeBot()
-    await bulk_recall.handle_message(bot, event("/大记忆清除数 20001"))
+    await bulk_recall.handle_message(bot, event("/大记忆清除术 20001"))
     assert bot.calls == [] and "用法" in bot.replies[0]
 
 
@@ -323,7 +323,7 @@ async def test_event_handler_stops_propagation_only_for_commands(cache, db):
     matcher.stop_propagation = lambda: setattr(matcher, "block", True)
     await events.cache_group_message(FakeBot(), event(), matcher)
     assert not matcher.block
-    await events.cache_group_message(FakeBot(), event("/大记忆清除数 0", message_id=101), matcher)
+    await events.cache_group_message(FakeBot(), event("/大记忆清除术 0", message_id=101), matcher)
     assert matcher.block
 
 

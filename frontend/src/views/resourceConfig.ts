@@ -29,7 +29,7 @@ export const configs: Record<Editable, Config> = {
   'recall-admins': {
     title: '批量撤回',
     subtitle:
-      '添加可使用 /大记忆清除数 的 QQ 管理员。命令只撤回当前群的最近消息，省略条数默认 500，最多 20000；无法撤回的消息自动跳过。',
+      '添加可使用 /大记忆清除术 的 QQ 管理员。命令只撤回当前群的最近消息，省略条数默认 500，最多 20000；无法撤回的消息自动跳过。',
     fields: [
       { key: 'user_id', label: 'QQ 号', type: 'number', required: true },
       enabled,

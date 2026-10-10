@@ -16,7 +16,7 @@ from app.services.message_cache import MESSAGE_CACHE_CAPACITY, cache_io
 from app.services.onebot import BotLike
 
 
-COMMAND = "/大记忆清除数"
+COMMAND = "/大记忆清除术"
 DEFAULT_COUNT = 500
 active_groups: set[tuple[str, int]] = set()
 
@@ -35,7 +35,7 @@ class RecallResult:
 
 
 def is_recall_command(text: str) -> bool:
-    return re.match(r"^/大记忆清除数(?:\s|$)", text.strip()) is not None
+    return re.match(rf"^{re.escape(COMMAND)}(?:\s|$)", text.strip()) is not None
 
 
 def parse_count(text: str) -> int:
