@@ -83,6 +83,28 @@ def test_authentication_is_required(client):
         assert exc.value.code == 4001
 
 
+def test_recall_admin_crud_and_permissions(client, db):
+    from app.services.bulk_recall import is_admin
+
+    with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
+        authenticate(ws)
+        for user_id in (0, -1, 1.5, True, "123"):
+            result = call(ws, "recall-admins.create", {"data": {"user_id": user_id}})
+            assert result["error"]["code"] == "VALIDATION_ERROR"
+        row = call(ws, "recall-admins.create", {"data": {"user_id": 123, "note": "test"}})["result"]
+        duplicate = call(ws, "recall-admins.create", {"data": {"user_id": 123}})
+        assert duplicate["error"]["code"] == "CONFLICT"
+        assert call(ws, "recall-admins.list", {"q": "123"})["result"]["total"] == 1
+        assert call(ws, "recall-admins.get", {"id": row["id"]})["result"]["note"] == "test"
+        with Session(db) as session:
+            assert is_admin(session, 123)
+        call(ws, "recall-admins.update", {"id": row["id"], "data": {"enabled": False}})
+        with Session(db) as session:
+            assert not is_admin(session, 123)
+        call(ws, "recall-admins.delete", {"id": row["id"]})
+        assert call(ws, "recall-admins.list")["result"]["total"] == 0
+
+
 def test_invalid_token_is_rejected(client):
     with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
         result = call(ws, "auth.authenticate", {"token": "invalid"})

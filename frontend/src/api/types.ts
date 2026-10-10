@@ -83,6 +83,7 @@ export type Resource =
   | 'blacklist'
   | 'moderation'
   | 'whitelist'
+  | 'recall-admins'
   | 'notices'
   | 'essence'
   | 'files'
@@ -92,7 +93,8 @@ export type Resource =
   | 'actions'
   | 'jobs'
   | 'job-items'
-export type Editable = 'groups' | 'rules' | 'blacklist' | 'moderation' | 'whitelist'
+export type Editable =
+  'groups' | 'rules' | 'blacklist' | 'moderation' | 'whitelist' | 'recall-admins'
 export type JobKind =
   | 'groups.sync'
   | 'notices.sync'

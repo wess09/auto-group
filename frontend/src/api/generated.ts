@@ -59,6 +59,14 @@ export type DedupeWhitelistListOut = {
   enabled: boolean
   note: string
 }
+export type RecallAdminListOut = {
+  id: number
+  created_at: string
+  updated_at: string
+  user_id: number
+  enabled: boolean
+  note: string
+}
 export type AnnouncementListOut = {
   id: number
   group_id: number
@@ -205,6 +213,14 @@ export type JoinBlacklistDetailOut = {
   note: string
 }
 export type DedupeWhitelistDetailOut = {
+  id: number
+  created_at: string
+  updated_at: string
+  user_id: number
+  enabled: boolean
+  note: string
+}
+export type RecallAdminDetailOut = {
   id: number
   created_at: string
   updated_at: string
@@ -388,6 +404,8 @@ export type MessageModerationRulePatch = {
 }
 export type DedupeWhitelistIn = { user_id: number; note?: string; enabled?: boolean }
 export type DedupeWhitelistPatch = { note?: string | null; enabled?: boolean | null }
+export type RecallAdminIn = { user_id: number; enabled?: boolean; note?: string }
+export type RecallAdminPatch = { enabled?: boolean | null; note?: string | null }
 export type ImageReviewChannelIn = {
   id: string
   name?: string
@@ -463,6 +481,7 @@ export type ResourceRows = {
   moderation: MessageModerationRuleListOut & { [key: string]: unknown }
   blacklist: JoinBlacklistListOut & { [key: string]: unknown }
   whitelist: DedupeWhitelistListOut & { [key: string]: unknown }
+  'recall-admins': RecallAdminListOut & { [key: string]: unknown }
   notices: AnnouncementListOut & { [key: string]: unknown }
   essence: EssenceMessageListOut & { [key: string]: unknown }
   files: GroupFileListOut & { [key: string]: unknown }
@@ -479,6 +498,7 @@ export type ResourceDetails = {
   moderation: MessageModerationRuleDetailOut & { [key: string]: unknown }
   blacklist: JoinBlacklistDetailOut & { [key: string]: unknown }
   whitelist: DedupeWhitelistDetailOut & { [key: string]: unknown }
+  'recall-admins': RecallAdminDetailOut & { [key: string]: unknown }
   notices: AnnouncementDetailOut & { [key: string]: unknown }
   essence: EssenceMessageDetailOut & { [key: string]: unknown }
   files: GroupFileDetailOut & { [key: string]: unknown }
@@ -495,4 +515,5 @@ export type ResourceInputs = {
   blacklist: { create: JoinBlacklistIn; update: JoinBlacklistPatch }
   moderation: { create: MessageModerationRuleIn; update: MessageModerationRulePatch }
   whitelist: { create: DedupeWhitelistIn; update: DedupeWhitelistPatch }
+  'recall-admins': { create: RecallAdminIn; update: RecallAdminPatch }
 }

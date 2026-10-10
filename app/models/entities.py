@@ -212,6 +212,17 @@ class DedupeWhitelist(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=now_utc)
 
 
+class RecallAdmin(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "recall_admins"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, unique=True)
+    enabled: bool = True
+    note: str = ""
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
 class JoinBlacklist(SQLModel, table=True):
     __tablename__: ClassVar[str] = "join_blacklist"
 

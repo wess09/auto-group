@@ -18,6 +18,7 @@ from app.models import (
     LeaveEvent,
     ManagedGroup,
     MessageModerationRule,
+    RecallAdmin,
 )
 from app.models.entities import AdminJob, AdminJobItem
 from app.schemas.admin import (
@@ -31,6 +32,8 @@ from app.schemas.admin import (
     ManagedGroupPatch,
     MessageModerationRuleIn,
     MessageModerationRulePatch,
+    RecallAdminIn,
+    RecallAdminPatch,
 )
 from app.schemas.rpc import MoveInput, PageInput, PageResult, Selection, WriteInput
 from app.schemas.resources import LIST_MODELS, DETAIL_MODELS
@@ -43,6 +46,7 @@ RESOURCES = {
     "blacklist": (JoinBlacklist, JoinBlacklistIn, JoinBlacklistPatch),
     "moderation": (MessageModerationRule, MessageModerationRuleIn, MessageModerationRulePatch),
     "whitelist": (DedupeWhitelist, DedupeWhitelistIn, DedupeWhitelistPatch),
+    "recall-admins": (RecallAdmin, RecallAdminIn, RecallAdminPatch),
     "notices": (Announcement, None, None),
     "essence": (EssenceMessage, None, None),
     "files": (GroupFile, None, None),

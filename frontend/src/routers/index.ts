@@ -13,6 +13,7 @@ const LoginView = () => import('../views/LoginView.vue')
 const MessageModerationView = () => import('../views/MessageModerationView.vue')
 const NoticesView = () => import('../views/NoticesView.vue')
 const RulesView = () => import('../views/RulesView.vue')
+const RecallView = () => import('../views/RecallView.vue')
 import { titleByPath } from './adminMenu'
 import { useTabsStore } from '../stores/modules/tabs'
 import { useUserStore } from '../stores/modules/user'
@@ -33,6 +34,7 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'groups', name: 'groups', component: GroupsView, meta: { title: '群配置' } },
       { path: 'rules', name: 'rules', component: RulesView, meta: { title: '入群规则' } },
+      { path: 'recall', name: 'recall', component: RecallView, meta: { title: '批量撤回' } },
       {
         path: 'join-blacklist',
         name: 'joinBlacklist',

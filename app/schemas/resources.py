@@ -15,6 +15,7 @@ from app.models import (
     LeaveEvent,
     ManagedGroup,
     MessageModerationRule,
+    RecallAdmin,
 )
 from app.models.entities import AdminJob, AdminJobItem
 
@@ -42,6 +43,7 @@ RESOURCE_FIELDS = {
     ),
     "blacklist": (JoinBlacklist, COMMON + " user_id enabled reason note", ""),
     "whitelist": (DedupeWhitelist, COMMON + " user_id enabled note", ""),
+    "recall-admins": (RecallAdmin, COMMON + " user_id enabled note", ""),
     "notices": (
         Announcement,
         "id group_id notice_id sender_id title content created_at synced_at",

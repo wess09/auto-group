@@ -89,6 +89,25 @@ test('CRUD and remote search work through one WS connection', async ({ page }) =
   expect(connections).toBe(1)
 })
 
+test('recall administrators can be managed by QQ number', async ({ page }) => {
+  await login(page)
+  await page.goto('/#/admin/recall')
+  await expect(page.getByRole('heading', { name: '批量撤回', exact: true })).toBeVisible()
+  await expect(page.getByText(/无法撤回的消息自动跳过/)).toBeVisible()
+  await page.getByRole('button', { name: '新增', exact: true }).click()
+  await page.getByLabel('QQ 号', { exact: true }).fill('987654321')
+  await page.getByLabel('备注', { exact: true }).fill('撤回管理员测试')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByRole('cell', { name: '987654321', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await page.screenshot({ path: test.info().outputPath('recall-admins.png'), fullPage: true })
+  await page.getByRole('button', { name: '停用', exact: true }).click()
+  await expect(page.getByRole('button', { name: '启用', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '删除', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '删除', exact: true }).click()
+  await expect(page.getByRole('cell', { name: '987654321', exact: true })).toHaveCount(0)
+})
+
 test('hidden dashboard sections and closed cloud settings are lazy', async ({ page }) => {
   await login(page)
   await page.setViewportSize({ width: 390, height: 640 })

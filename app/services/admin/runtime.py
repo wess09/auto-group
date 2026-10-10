@@ -77,6 +77,7 @@ MODEL_TOPICS = {
     "join_blacklist": "blacklist",
     "message_moderation_rules": "moderation",
     "dedupe_whitelist": "whitelist",
+    "recall_admins": "recall-admins",
     "announcements": "notices",
     "essence_messages": "essence",
     "group_files": "files",

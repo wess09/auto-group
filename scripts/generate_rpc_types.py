@@ -56,6 +56,7 @@ def render():
         "blacklist": (admin.JoinBlacklistIn, admin.JoinBlacklistPatch),
         "moderation": (admin.MessageModerationRuleIn, admin.MessageModerationRulePatch),
         "whitelist": (admin.DedupeWhitelistIn, admin.DedupeWhitelistPatch),
+        "recall-admins": (admin.RecallAdminIn, admin.RecallAdminPatch),
     }
     for create, patch in schemas.values():
         result += declaration(create.__name__, create) + declaration(patch.__name__, patch)

@@ -3,6 +3,7 @@ from typing import Any
 import asyncio
 
 from nonebot import logger, on_message, on_notice, on_request
+from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
@@ -19,6 +20,8 @@ from app.services.message_moderation import (
 from app.services.join_requests import process_join_request
 from app.services.admin import bot_data, jobs
 from app.services.admin.runtime import database
+from app.services import bulk_recall
+from app.services.message_cache import cache_io
 
 
 def event_to_dict(event: Any) -> dict[str, Any]:
@@ -44,6 +47,13 @@ def extract_answer(comment: str) -> str:
 request_matcher = on_request(priority=5, block=False)
 notice_matcher = on_notice(priority=5, block=False)
 message_matcher = on_message(priority=99, block=False)
+cache_matcher = on_message(priority=1, block=False)
+
+
+@cache_matcher.handle()
+async def cache_group_message(bot: Bot, event: GroupMessageEvent, matcher: Matcher) -> None:
+    if await bulk_recall.handle_message(bot, event):
+        matcher.stop_propagation()
 
 
 async def sync_group_info_safely(group_id: int) -> None:
@@ -102,6 +112,14 @@ async def handle_group_message(event: GroupMessageEvent) -> None:
 
 @notice_matcher.handle()
 async def handle_group_member_change(event: NoticeEvent) -> None:
+    if event.notice_type == "group_recall":
+        try:
+            await cache_io(
+                "record_recall", str(event.self_id), event.group_id, event.message_id
+            )
+        except Exception as exc:
+            logger.warning(f"撤回通知缓存更新失败：error={type(exc).__name__}")
+        return
     if event.notice_type not in {"group_increase", "group_decrease"}:
         return
     group_id = int(getattr(event, "group_id", 0) or 0)

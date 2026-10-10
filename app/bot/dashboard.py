@@ -12,6 +12,7 @@ from app.core.database import init_db
 from app.services.group_sync import group_info_sync_loop, member_snapshot_daily_loop
 from app.services.admin import jobs
 from app.services.admin.runtime import database, hub
+from app.services.message_cache import close_message_cache, init_message_cache
 
 
 driver = get_driver()
@@ -24,6 +25,7 @@ async def start_background_sync_tasks() -> None:
         return
     app.state.auto_group_sync_tasks_started = True
     hub.start()
+    await init_message_cache()
     await database(jobs.recover)
     app.state.auto_group_info_sync_task = asyncio.create_task(group_info_sync_loop())
     app.state.auto_group_member_snapshot_task = asyncio.create_task(member_snapshot_daily_loop())
@@ -40,6 +42,7 @@ async def stop_background_tasks() -> None:
     for task in running:
         task.cancel()
     await asyncio.gather(*running, return_exceptions=True)
+    close_message_cache()
 
 
 def mount_dashboard() -> None:

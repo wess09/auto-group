@@ -65,7 +65,9 @@
 | `jobs.findByRequestId` | `{request_id}` → 当前管理员的 `JobRef` 或 `null` |
 | `jobs.actions` | `{job_id,...分页参数}`，这里是管理任务 ID → 对应去重动作分页 |
 
-资源名称为 `groups`、`rules`、`blacklist`、`moderation`、`whitelist`、`notices`、`essence`、`files`、`joins`、`leaves`、`audits`、`actions`、`jobs`、`job-items`。直接 CRUD 只适用于前五项；其余业务操作通过后台任务。`actions.list` 的 `job_id` 是原始去重任务编号，`job-items.list` 的 `job_id` 是管理任务编号。
+资源名称为 `groups`、`rules`、`blacklist`、`moderation`、`whitelist`、`recall-admins`、`notices`、`essence`、`files`、`joins`、`leaves`、`audits`、`actions`、`jobs`、`job-items`。直接 CRUD 适用于 `groups`、`rules`、`blacklist`、`moderation`、`whitelist`、`recall-admins`；其余业务操作通过后台任务。`actions.list` 的 `job_id` 是原始去重任务编号，`job-items.list` 的 `job_id` 是管理任务编号。
+
+`recall-admins.create` 的 `data` 为 `{user_id,enabled?,note?}`；QQ 必须是正整数且唯一，默认启用。`recall-admins.update` 仅允许修改 `enabled`、`note`，删除或停用立即影响后续命令的授权检查，已有任务继续完成。记录配置位于管理数据库，收到的消息 ID 缓存在独立的 `MESSAGE_CACHE_PATH` SQLite 数据库。实际撤回由群内 `/大记忆清除数 [条数]` 启动，完成后写入 `messages.bulk-recall` 操作日志；这些群命令不使用管理 WS 的持久化任务编号。
 
 群移动在一个数据库事务中重排优先级；界面保留直接编辑优先级和跨页指定位置。仪表盘重型聚合缓存 15 秒，消息事件不会逐条触发重算。文件目录缓存 30 秒且分页返回，修改后失效；只读取当前层，不递归预取。
 

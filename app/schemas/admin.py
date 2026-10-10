@@ -290,6 +290,17 @@ class DedupeWhitelistPatch(AdminInput):
     enabled: bool | None = None
 
 
+class RecallAdminIn(AdminInput):
+    user_id: int = Field(gt=0, le=9007199254740991, strict=True)
+    enabled: bool = True
+    note: str = Field(default="", max_length=2000)
+
+
+class RecallAdminPatch(AdminInput):
+    enabled: bool | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
 class JoinBlacklistIn(AdminInput):
     user_id: int
     enabled: bool = True

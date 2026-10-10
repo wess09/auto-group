@@ -26,6 +26,23 @@ const patterns: Field = {
   hint: '每行一条；正则模式使用 Python 正则语法',
 }
 export const configs: Record<Editable, Config> = {
+  'recall-admins': {
+    title: '批量撤回',
+    subtitle:
+      '添加可使用 /大记忆清除数 的 QQ 管理员。命令只撤回当前群的最近消息，省略条数默认 500，最多 20000；无法撤回的消息自动跳过。',
+    fields: [
+      { key: 'user_id', label: 'QQ 号', type: 'number', required: true },
+      enabled,
+      { key: 'note', label: '备注', type: 'textarea' },
+    ],
+    defaults: { user_id: 0, enabled: true, note: '' },
+    columns: columns([
+      ['QQ', 'user_id'],
+      ['备注', 'note'],
+      ['状态', 'enabled'],
+      ['操作', 'actions'],
+    ]),
+  },
   groups: {
     title: '群配置',
     subtitle: '设置群优先级、容量、QQ 等级门槛和答错自动拉黑。优先级越高，越优先推荐。',

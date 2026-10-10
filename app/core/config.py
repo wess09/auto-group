@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,9 @@ class Settings(BaseSettings):
     app_host: str = "127.0.0.1"
     app_port: int = 8080
     database_url: str = "sqlite:///./data/auto_group.db"
+    message_cache_path: str = "./data/message_cache.db"
+    message_recall_concurrency: int = Field(default=32, ge=1, le=128)
+    message_recall_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
     jwt_secret: str = "change-this-secret"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7
