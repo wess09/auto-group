@@ -181,6 +181,36 @@ class ImageReviewChannelSettings(AdminInput):
 class ImageReviewChannelIn(ImageReviewChannelSettings):
     api_key: str = ""
     clear_api_key: bool = False
+    proxy_url: str = Field(default="", max_length=2048)
+    clear_proxy_url: bool = False
+
+    @field_validator("proxy_url")
+    @classmethod
+    def valid_proxy_url(cls, value: str) -> str:
+        from urllib.parse import urlsplit
+
+        value = value.strip()
+        if not value:
+            return ""
+        try:
+            url = urlsplit(value)
+            port = url.port
+            valid = (
+                url.scheme in {"http", "https", "socks5"}
+                and bool(url.hostname)
+                and (port is None or 1 <= port <= 65535)
+                and url.path in {"", "/"}
+                and not url.query
+                and not url.fragment
+                and not any(char.isspace() or ord(char) < 32 for char in value)
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError(
+                "代理地址必须是有效的 HTTP、HTTPS 或 SOCKS5 URL，不能含路径、查询参数或片段"
+            )
+        return value
 
     @field_validator("api_key")
     @classmethod
@@ -188,14 +218,17 @@ class ImageReviewChannelIn(ImageReviewChannelSettings):
         return value.strip()
 
     @model_validator(mode="after")
-    def valid_key(self):
+    def valid_secrets(self):
         if self.api_key and self.clear_api_key:
             raise ValueError("不能同时设置和清除 API Key")
+        if self.proxy_url and self.clear_proxy_url:
+            raise ValueError("不能同时设置和清除代理地址")
         return self
 
 
 class ImageReviewChannelOut(ImageReviewChannelSettings):
     api_key_configured: bool
+    proxy_url_configured: bool = False
 
 
 class ImageReviewConfigIn(AdminInput):

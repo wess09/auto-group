@@ -374,6 +374,51 @@ def test_image_channels_mask_keys_preserve_them_by_id_and_clear_explicitly(clien
         assert saved["channels"][1]["api_key_configured"]
 
 
+def test_image_channel_proxies_are_masked_preserved_replaced_and_cleared(client, db):
+    from app.models import ImageReviewConfig
+
+    proxies = ["http://user:private-pass@proxy.example:7890", "socks5://localhost:1080"]
+    with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
+        authenticate(ws)
+        data = {
+            "enabled": True,
+            "channels": [
+                {"id": "a", "model": "vision", "api_key": "secret-a", "proxy_url": proxies[0]},
+                {"id": "b", "model": "vision", "proxy_url": proxies[1]},
+            ],
+        }
+        saved = call(ws, "image-review.update", data)["result"]
+        assert all(channel["proxy_url_configured"] for channel in saved["channels"])
+        assert all("proxy_url" not in channel for channel in saved["channels"])
+        assert "private-pass" not in str(saved)
+        assert call(ws, "image-review.get")["result"] == saved
+
+        data["channels"].reverse()
+        data["channels"][0]["proxy_url"] = ""
+        del data["channels"][1]["proxy_url"]
+        call(ws, "image-review.update", data)
+        with Session(db) as session:
+            config = session.exec(select(ImageReviewConfig)).one()
+            assert [channel["proxy_url"] for channel in config.channels] == proxies[::-1]
+            assert all("clear_proxy_url" not in channel for channel in config.channels)
+
+        data["channels"][0]["proxy_url"] = "https://new-proxy.example:8443"
+        data["channels"][1]["clear_proxy_url"] = True
+        saved = call(ws, "image-review.update", data)["result"]
+        assert saved["channels"][0]["proxy_url_configured"]
+        assert not saved["channels"][1]["proxy_url_configured"]
+        with Session(db) as session:
+            config = session.exec(select(ImageReviewConfig)).one()
+            assert config.channels[0]["proxy_url"] == "https://new-proxy.example:8443"
+            assert config.channels[1]["proxy_url"] == ""
+            assert config.channels[1]["api_key"] == "secret-a"
+            audits = session.exec(
+                select(AuditLog).where(AuditLog.action == "image-review.update")
+            ).all()
+            assert "proxy.example" not in str([row.detail for row in audits])
+            assert "private-pass" not in str([row.detail for row in audits])
+
+
 def test_crud_updates_global_rule_and_audit_in_same_transaction(db):
     with Session(db) as session:
         row = resources.write_resource(

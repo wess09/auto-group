@@ -15,8 +15,9 @@ def get_image_review_config(session: Session) -> ImageReviewConfig:
 def image_review_config_out(config: ImageReviewConfig) -> ImageReviewConfigOut:
     channels = [
         {
-            **{key: value for key, value in channel.items() if key != "api_key"},
+            **{key: value for key, value in channel.items() if key not in {"api_key", "proxy_url"}},
             "api_key_configured": bool(channel.get("api_key")),
+            "proxy_url_configured": bool(channel.get("proxy_url")),
         }
         for channel in config.channels
     ]
@@ -30,13 +31,15 @@ def image_review_config_out(config: ImageReviewConfig) -> ImageReviewConfigOut:
 
 def update_image_review_config(session: Session, payload: ImageReviewConfigIn) -> ImageReviewConfig:
     config = get_image_review_config(session)
-    previous_keys = {channel["id"]: channel.get("api_key", "") for channel in config.channels}
+    previous_channels = {channel["id"]: channel for channel in config.channels}
     channels = []
     for channel in payload.channels:
-        data = channel.model_dump(exclude={"clear_api_key"})
-        data["api_key"] = (
-            "" if channel.clear_api_key else channel.api_key or previous_keys.get(channel.id, "")
-        )
+        data = channel.model_dump(exclude={"clear_api_key", "clear_proxy_url"})
+        previous = previous_channels.get(channel.id, {})
+        for field in ("api_key", "proxy_url"):
+            data[field] = (
+                "" if getattr(channel, f"clear_{field}") else data[field] or previous.get(field, "")
+            )
         channels.append(data)
     config.enabled = payload.enabled
     config.system_prompt = payload.system_prompt

@@ -254,9 +254,11 @@ test('QQ limits and ordered image review channels can be configured', async ({ p
   await page.getByLabel('渠道名称', { exact: true }).fill('主渠道')
   await page.getByLabel('多模态模型名称', { exact: true }).fill('small-vision-a')
   await page.getByLabel('API Key', { exact: true }).fill('browser-test-key-a')
+  await page.getByLabel('代理地址（可选）', { exact: true }).fill('http://127.0.0.1:7890')
   await page.getByRole('button', { name: '新增渠道', exact: true }).click()
   await page.getByLabel('渠道名称', { exact: true }).fill('备用渠道')
   await page.getByLabel('API Base URL', { exact: true }).fill('https://backup.example/v1')
+  await page.getByLabel('代理地址（可选）', { exact: true }).fill('socks5://localhost:1080')
   await page.getByLabel('多模态模型名称', { exact: true }).fill('small-vision-b')
   await page.getByLabel('输出总预算（max_completion_tokens）', { exact: true }).fill('4096')
   await page
@@ -268,6 +270,10 @@ test('QQ limits and ordered image review channels can be configured', async ({ p
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: 'LLM 图片审核配置', exact: true }).click()
   await expect(page.getByLabel('渠道名称', { exact: true })).toHaveValue('备用渠道')
+  await expect(page.getByLabel('代理地址（可选）', { exact: true })).toHaveValue('')
+  await expect(
+    page.getByText('已配置；留空保留原代理，可重新填写以替换', { exact: true }),
+  ).toBeVisible()
   await expect(page.getByLabel('输出总预算（max_completion_tokens）', { exact: true })).toHaveValue(
     '4096',
   )
@@ -275,6 +281,31 @@ test('QQ limits and ordered image review channels can be configured', async ({ p
   await page.getByRole('option', { name: '2. 主渠道', exact: true }).click()
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('')
   await expect(page.getByText('已配置；留空保留原密钥', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('已配置；留空保留原代理，可重新填写以替换', { exact: true }),
+  ).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'LLM 图片审核配置', exact: true }).click()
+  await page.getByLabel('当前渠道（按优先级）', { exact: true }).press('Enter')
+  await page.getByRole('option', { name: '1. 备用渠道', exact: true }).click()
+  await expect(
+    page.getByText('已配置；留空保留原代理，可重新填写以替换', { exact: true }),
+  ).toBeVisible()
+  await page.getByLabel('代理地址（可选）', { exact: true }).fill('http://replacement:7890')
+  await page.getByText('清除已保存的代理地址', { exact: true }).click()
+  await expect(page.getByLabel('代理地址（可选）', { exact: true })).toBeDisabled()
+  await expect(page.getByLabel('代理地址（可选）', { exact: true })).toHaveValue('')
+  await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'LLM 图片审核配置', exact: true }).click()
+  await expect(page.getByLabel('清除已保存的代理地址', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('代理地址（可选）', { exact: true })).toBeEnabled()
+  await page.getByLabel('当前渠道（按优先级）', { exact: true }).press('Enter')
+  await page.getByRole('option', { name: '2. 主渠道', exact: true }).click()
+  await expect(
+    page.getByText('已配置；留空保留原代理，可重新填写以替换', { exact: true }),
+  ).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
 
   await page.getByRole('button', { name: '新增', exact: true }).click()

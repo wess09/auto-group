@@ -420,6 +420,8 @@ export type ImageReviewChannelIn = {
   timeout_seconds?: number
   api_key?: string
   clear_api_key?: boolean
+  proxy_url?: string
+  clear_proxy_url?: boolean
 }
 export type ImageReviewChannelOut = {
   id: string
@@ -434,6 +436,7 @@ export type ImageReviewChannelOut = {
   image_detail?: 'auto' | 'low' | 'high' | 'original'
   timeout_seconds?: number
   api_key_configured: boolean
+  proxy_url_configured?: boolean
 }
 export type ImageReviewConfigIn = {
   enabled?: boolean
@@ -453,6 +456,8 @@ export type ImageReviewConfigIn = {
     timeout_seconds?: number
     api_key?: string
     clear_api_key?: boolean
+    proxy_url?: string
+    clear_proxy_url?: boolean
   }[]
 }
 export type ImageReviewConfigOut = {
@@ -473,6 +478,7 @@ export type ImageReviewConfigOut = {
     image_detail?: 'auto' | 'low' | 'high' | 'original'
     timeout_seconds?: number
     api_key_configured: boolean
+    proxy_url_configured?: boolean
   }[]
 }
 export type ResourceRows = {

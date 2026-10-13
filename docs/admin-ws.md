@@ -59,7 +59,7 @@
 | `dashboard.rankings` | `{}` → 群人数、活跃群及活跃成员排行 |
 | `dashboard.recent` | `{}` → 最近退群和操作记录 |
 | `cloud.get / cloud.update` | `{}` / 腾讯云配置 → 脱敏配置；SecretKey 不回显 |
-| `image-review.get / image-review.update` | `{}` / `{enabled,system_prompt,min_confidence,channels}` → 脱敏配置；按渠道 ID 保留密钥，API Key 不回显，空值保留，渠道的 `clear_api_key=true` 清除 |
+| `image-review.get / image-review.update` | `{}` / `{enabled,system_prompt,min_confidence,channels}` → 脱敏配置；每渠道支持 `proxy_url`（HTTP/HTTPS/SOCKS5），API Key 和代理地址不回显，返回 `api_key_configured` / `proxy_url_configured`；空值或省略时按渠道 ID 保留，`clear_api_key=true` / `clear_proxy_url=true` 清除；无渠道代理时沿用环境代理设置 |
 | `files.browse` | `{group_id,folder_id?,page?,page_size?,q?}` → 目录分页 |
 | `files.url` | `{group_id,file_id,busid}` → `{url}` |
 | `jobs.findByRequestId` | `{request_id}` → 当前管理员的 `JobRef` 或 `null` |

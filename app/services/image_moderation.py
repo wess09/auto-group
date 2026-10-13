@@ -4,7 +4,7 @@ import asyncio
 import re
 from time import monotonic
 from typing import Annotated, Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 from nonebot import logger
@@ -60,6 +60,17 @@ REVIEW_TOOL = "submit_image_review"
 RETRY_400_DELAYS = (0.5, 1.0)
 
 
+def _request_secrets(channel: ImageReviewChannelIn, image_url: str) -> tuple[str, ...]:
+    proxy = urlsplit(channel.proxy_url)
+    return (
+        channel.api_key,
+        image_url,
+        channel.proxy_url,
+        unquote(proxy.username or ""),
+        unquote(proxy.password or ""),
+    )
+
+
 def _redact_error_value(value: str, secrets: tuple[str, ...]) -> str:
     for secret in secrets:
         if secret:
@@ -68,7 +79,7 @@ def _redact_error_value(value: str, secrets: tuple[str, ...]) -> str:
             )
     value = value.replace("\\/", "/")
     value = re.sub(r"data:image/[^\s\"'<>]+", "[IMAGE_DATA]", value, flags=re.IGNORECASE)
-    value = re.sub(r"https?://[^\s\"'<>]+", "[URL]", value, flags=re.IGNORECASE)
+    value = re.sub(r"(?:https?|socks5)://[^\s\"'<>]+", "[URL]", value, flags=re.IGNORECASE)
     value = re.sub(r"\bBearer\s+[^\s\"'<>]+", "Bearer [REDACTED]", value, flags=re.IGNORECASE)
     return re.sub(r"\bsk-[A-Za-z0-9_-]+", "[REDACTED]", value)
 
@@ -108,7 +119,7 @@ async def _post_with_400_retries(
         response = await client.post(build_endpoint(channel), headers=headers, json=body)
         if response.status_code != 400 or attempt == len(RETRY_400_DELAYS):
             return response
-        details = http_error_details(response, secrets=(channel.api_key, image_url))
+        details = http_error_details(response, secrets=_request_secrets(channel, image_url))
         logger.warning(
             f"图片审核 HTTP 400{scope}：channel={channel.name or channel.id}，"
             f"model={channel.model}，{details}，"
@@ -302,7 +313,9 @@ async def review_image(
                 headers = {"Content-Type": "application/json"}
                 if channel.api_key:
                     headers["Authorization"] = f"Bearer {channel.api_key}"
-                async with httpx.AsyncClient(timeout=channel.timeout_seconds) as client:
+                async with httpx.AsyncClient(
+                    timeout=channel.timeout_seconds, proxy=channel.proxy_url or None
+                ) as client:
                     response = await asyncio.wait_for(
                         _post_with_400_retries(
                             client,
@@ -330,7 +343,9 @@ async def review_image(
                 # Any valid verdict ends failover, including safe/low-confidence results.
                 return verdict
             except httpx.HTTPStatusError as exc:
-                details = http_error_details(exc.response, secrets=(channel.api_key, image_url))
+                details = http_error_details(
+                    exc.response, secrets=_request_secrets(channel, image_url)
+                )
                 retry_note = "，额外重发 2 次仍失败" if exc.response.status_code == 400 else ""
                 logger.warning(
                     f"图片审核渠道失败{scope}：channel={label}，model={channel.model}，"

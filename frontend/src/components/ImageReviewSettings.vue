@@ -74,6 +74,26 @@
               label="清除已保存的 API Key"
             />
             <v-text-field
+              v-model="channel.proxy_url"
+              label="代理地址（可选）"
+              type="password"
+              autocomplete="new-password"
+              :disabled="channel.clear_proxy_url"
+              :hint="
+                channel.proxy_url_configured
+                  ? '已配置；留空保留原代理，可重新填写以替换'
+                  : '例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080；留空沿用服务器环境代理设置'
+              "
+              persistent-hint
+            />
+            <v-checkbox
+              v-if="channel.proxy_url_configured"
+              v-model="channel.clear_proxy_url"
+              label="清除已保存的代理地址"
+              hint="清除后沿用服务器环境代理设置，未配置环境代理时直连"
+              persistent-hint
+            />
+            <v-text-field
               v-model="channel.model"
               label="多模态模型名称"
               :rules="channel.enabled ? required : []"
@@ -188,7 +208,10 @@ const dialog = ref(false),
   saving = ref(false)
 const query = useRpcQuery('image-review.get', {}, 'image-review', () => dialog.value)
 const formRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
-type ChannelForm = ImageReviewChannelIn & { api_key_configured: boolean }
+type ChannelForm = ImageReviewChannelIn & {
+  api_key_configured: boolean
+  proxy_url_configured: boolean
+}
 const form = reactive({
   enabled: false,
   system_prompt: '',
@@ -224,6 +247,9 @@ function addChannel() {
     api_key: '',
     api_key_configured: false,
     clear_api_key: false,
+    proxy_url: '',
+    proxy_url_configured: false,
+    clear_proxy_url: false,
     model: '',
     response_format: 'tool_call',
     reasoning_effort: '',
@@ -281,7 +307,14 @@ watch(
       form.enabled = value.enabled
       form.system_prompt = value.system_prompt
       form.min_confidence = value.min_confidence
-      form.channels = value.channels.map((item) => ({ ...item, api_key: '', clear_api_key: false }))
+      form.channels = value.channels.map((item) => ({
+        ...item,
+        api_key: '',
+        clear_api_key: false,
+        proxy_url: '',
+        proxy_url_configured: item.proxy_url_configured ?? false,
+        clear_proxy_url: false,
+      }))
       Object.keys(extraBodies).forEach((key) => delete extraBodies[key])
       for (const item of value.channels)
         extraBodies[item.id] = JSON.stringify(item.extra_body, null, 2)
@@ -293,12 +326,19 @@ watch(dialog, (value) => {
   if (!value)
     form.channels.forEach((item) => {
       item.api_key = ''
+      item.proxy_url = ''
     })
 })
 watch(
   () => channel.value?.clear_api_key,
   (value) => {
     if (value && channel.value) channel.value.api_key = ''
+  },
+)
+watch(
+  () => channel.value?.clear_proxy_url,
+  (value) => {
+    if (value && channel.value) channel.value.proxy_url = ''
   },
 )
 function resetPrompt() {
@@ -309,7 +349,7 @@ async function save() {
   saving.value = true
   try {
     const channels = form.channels.map((item) => {
-      const { api_key_configured: _, ...data } = item
+      const { api_key_configured: _, proxy_url_configured: _proxy, ...data } = item
       return {
         ...data,
         extra_body: isModerationModel(item.model)
