@@ -14,6 +14,7 @@
           :append-inner-icon="showPassword ? mdiEyeOff : mdiEye"
           @click:append-inner="showPassword = !showPassword"
         />
+        <v-text-field v-model="form.totp_code" label="动态验证码（启用双因素认证时填写）" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
         <div id="aliyun-captcha-element" />
         <button
           id="aliyun-captcha-button"
@@ -86,7 +87,7 @@ const captchaReady = ref(false)
 const captchaError = ref('')
 const captchaButton = ref<HTMLButtonElement | null>(null)
 const captcha = ref<AliyunCaptchaInstance | null>(null)
-const form = reactive({ username: '', password: '' })
+const form = reactive({ username: '', password: '', totp_code: '' })
 const captchaConfig = {
   region: import.meta.env.VITE_ALIYUN_CAPTCHA_REGION || 'cn',
   prefix: import.meta.env.VITE_ALIYUN_CAPTCHA_PREFIX || '',

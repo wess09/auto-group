@@ -12,6 +12,7 @@ import {
   mdiTextBoxOutline,
   mdiProgressClock,
   mdiOpenInNew,
+  mdiLockCheckOutline,
 } from '@mdi/js'
 import { adminBase, adminPath } from '../adminRoute'
 export const adminMenuItems = [
@@ -27,6 +28,7 @@ export const adminMenuItems = [
   { path: adminPath('dedupe'), title: '一键去重', icon: mdiAccountMultipleRemoveOutline },
   { path: adminPath('events'), title: '事件日志', icon: mdiTextBoxOutline },
   { path: adminPath('jobs'), title: '后台任务', icon: mdiProgressClock },
+  { path: adminPath('security'), title: '账号安全', icon: mdiLockCheckOutline },
   { path: '/join', title: '公开入口', icon: mdiOpenInNew },
 ]
 export function titleByPath(path: string) {

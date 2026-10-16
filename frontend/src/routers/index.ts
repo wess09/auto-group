@@ -58,6 +58,7 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '后台任务' },
       },
       { path: 'events', name: 'events', component: EventsView, meta: { title: '事件日志' } },
+      { path: 'security', name: 'security', component: () => import('../views/SecurityView.vue'), meta: { title: '账号安全' } },
     ],
   },
 ]

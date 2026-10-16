@@ -52,6 +52,8 @@ ws://127.0.0.1:8080/onebot/v11/ws
 
 后台账号密码来自 `.env`，首次部署前请修改 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`。
 
+登录后台后进入“账号安全”可启用双因素认证。页面显示的二维码可用 Google Authenticator、Microsoft Authenticator 等 TOTP 验证器扫描，输入验证器生成的 6 位验证码确认绑定；之后登录需同时填写密码和动态验证码。更换设备前请先在新设备绑定验证器。
+
 ## 批量撤回消息
 
 在后台“批量撤回”页面添加管理员 QQ 号，启用后该 QQ 可在机器人所在群发送：

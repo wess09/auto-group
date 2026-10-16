@@ -298,6 +298,8 @@ class Admin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     password_hash: str
+    totp_secret: str = ""
+    totp_enabled: bool = False
     created_at: datetime = Field(default_factory=now_utc)
 
 

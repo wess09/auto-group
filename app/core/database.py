@@ -43,6 +43,10 @@ def _upgrade_sqlite_schema() -> None:
             "apply_status": "VARCHAR NOT NULL DEFAULT 'legacy'",
             "apply_error": "VARCHAR NOT NULL DEFAULT ''",
         },
+        "admins": {
+            "totp_secret": "VARCHAR NOT NULL DEFAULT ''",
+            "totp_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+        },
     }
     with engine.begin() as connection:
         for table, additions_for_table in additions.items():

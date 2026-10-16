@@ -10,6 +10,11 @@ from app.services.image_review_policy import DEFAULT_IMAGE_REVIEW_PROMPT
 class LoginIn(BaseModel):
     username: str
     password: str
+    totp_code: str = ""
+
+
+class TotpCodeIn(BaseModel):
+    code: str
 
 
 class TokenOut(BaseModel):
