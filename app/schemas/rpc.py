@@ -29,6 +29,7 @@ class PageInput(Input):
     start_date: str | None = None
     end_date: str | None = None
     job_id: int | None = None
+    admin_id: int | None = Field(default=None, gt=0)
 
     @field_validator("start_date", "end_date")
     @classmethod

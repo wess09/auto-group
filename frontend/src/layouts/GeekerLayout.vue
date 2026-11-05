@@ -15,7 +15,7 @@
     <v-divider />
     <v-list nav class="pa-3">
       <v-list-item
-        v-for="item in adminMenuItems"
+        v-for="item in visibleMenu"
         :key="item.path"
         :to="item.path"
         :title="item.title"
@@ -31,6 +31,9 @@
   <v-app-bar flat color="surface-container-low" height="64">
     <v-btn v-if="mobile" :icon="mdiMenu" aria-label="打开导航" @click="drawer = !drawer" />
     <v-app-bar-title class="text-body-1">{{ titleByPath(route.path) }}</v-app-bar-title>
+    <v-chip v-if="!mobile && userStore.profile" size="small" class="mr-2">
+      {{ userStore.profile.username }} · {{ userStore.isSuperadmin ? '超级管理员' : '管理员' }}
+    </v-chip>
     <v-chip
       size="small"
       :color="socket.status.value === 'connected' ? 'primary' : 'warning'"
@@ -87,7 +90,7 @@ import { adminMenuItems, titleByPath } from '../routers/adminMenu'
 import { useTabsStore } from '../stores/modules/tabs'
 import { useUserStore } from '../stores/modules/user'
 import { themeMode, type ThemeMode } from '../theme/dynamicTheme'
-import { socket } from '../api/client'
+import { api, socket } from '../api/client'
 import { queryClient } from '../api/queries'
 import { pageStates, report } from '../stores/ui'
 import { appName } from '../branding'
@@ -96,6 +99,9 @@ const route = useRoute(),
   tabsStore = useTabsStore(),
   userStore = useUserStore()
 const { width } = useDisplay()
+const visibleMenu = computed(() =>
+  adminMenuItems.filter((item) => !('superadminOnly' in item) || userStore.isSuperadmin),
+)
 const mobile = computed(() => width.value < 600),
   rail = computed(() => width.value >= 600 && width.value < 1200)
 const drawer = ref(!mobile.value)
@@ -113,7 +119,12 @@ const modes: { value: ThemeMode; title: string }[] = [
   { value: 'light', title: '浅色' },
   { value: 'dark', title: '深色' },
 ]
-function logout() {
+async function logout() {
+  try {
+    await api.post('/auth/logout')
+  } catch (error) {
+    report(error)
+  }
   socket.close()
   queryClient.clear()
   pageStates.clear()

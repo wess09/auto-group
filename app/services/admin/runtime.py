@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session as SASession
 from sqlmodel import Session
 
 from app.core.database import engine
+from app.services import admin_sessions
+from app.services.audit import enrich_audits as _enrich_audits  # noqa: F401
 
 
 T = TypeVar("T")
@@ -72,6 +74,7 @@ class ChangeHub:
 
 hub = ChangeHub()
 MODEL_TOPICS = {
+    "admins": "admins",
     "managed_groups": "groups",
     "answer_rules": "rules",
     "join_blacklist": "blacklist",
@@ -112,6 +115,10 @@ def valid_topic(topic: str) -> bool:
 def remember_changes(session: SASession, *_: Any) -> None:
     topics = session.info.setdefault("admin_changes", {})
     for row in session.new | session.dirty | session.deleted:
+        if getattr(row, "__tablename__", "") == "audit_logs" and row.action.startswith("rpc."):
+            # Reading the audit list must not trigger an endless subscribe/refetch cycle.
+            if not row.detail.get("write", False):
+                continue
         topic = MODEL_TOPICS.get(getattr(row, "__tablename__", ""))
         if not topic:
             continue
@@ -147,8 +154,11 @@ def remember_changes(session: SASession, *_: Any) -> None:
 @event.listens_for(SASession, "after_commit")
 def publish_committed(session: SASession) -> None:
     hub.committed(session.info.pop("admin_changes", {}))
+    for admin_id in session.info.pop("revoke_admin_ids", set()):
+        admin_sessions.revoke(admin_id)
 
 
 @event.listens_for(SASession, "after_rollback")
 def discard_changes(session: SASession) -> None:
     session.info.pop("admin_changes", None)
+    session.info.pop("revoke_admin_ids", None)

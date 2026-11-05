@@ -119,6 +119,15 @@ def create_job(
     )
     session.add(job)
     try:
+        session.flush()
+        session.add(
+            AuditLog(
+                admin_id=admin_id,
+                action=f"{kind}.queued",
+                target=str(job.id),
+                detail={"params": data, "request_id": request_id},
+            )
+        )
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -232,8 +241,9 @@ def finish(session: Session, job_id: int, status: str, error: str = "") -> None:
         AuditLog(
             admin_id=job.admin_id,
             action=job.kind,
+            status="failed" if status in {"failed", "interrupted"} else "success",
             target=str(job_id),
-            detail={"status": status, "error": error},
+            detail={"status": status, "error": error, "params": job.params, "summary": job.summary},
         )
     )
     if job.dedupe_job_id and status == "failed":
@@ -510,6 +520,15 @@ def recover(session: Session) -> None:
         job.status = "interrupted"
         job.summary = {**job.summary, "error": "服务重启，任务已中断；请核实外部操作结果"}
         session.add(job)
+        session.add(
+            AuditLog(
+                admin_id=job.admin_id,
+                action=f"{job.kind}.interrupted",
+                target=str(job.id),
+                status="failed",
+                detail={"error": job.summary["error"], "params": job.params},
+            )
+        )
         if job.dedupe_job_id:
             inner = session.get(DedupeJob, job.dedupe_job_id)
             if inner:

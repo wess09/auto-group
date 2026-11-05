@@ -61,6 +61,11 @@ def render():
     for create, patch in schemas.values():
         result += declaration(create.__name__, create) + declaration(patch.__name__, patch)
     for model in (
+        admin.AdminProfile,
+        admin.AdminCreateIn,
+        admin.AdminUpdateIn,
+        admin.AdminPasswordIn,
+        admin.PasswordChangeIn,
         admin.ImageReviewChannelIn,
         admin.ImageReviewChannelOut,
         admin.ImageReviewConfigIn,

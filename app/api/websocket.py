@@ -8,12 +8,16 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, TypeAdapter, ValidationError, create_model
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.config import get_settings
 from app.core.security import decode_access_token
-from app.models import Admin, AuditLog
+from app.models import AuditLog
 from app.schemas.admin import (
+    AdminCreateIn,
+    AdminUpdateIn,
+    AdminPasswordIn,
+    AdminProfile,
     TencentCloudTmsConfigIn,
     TencentCloudTmsConfigOut,
     ImageReviewConfigIn,
@@ -46,7 +50,7 @@ from app.schemas.rpc import (
     TrendsOut,
     WriteInput,
 )
-from app.services import onebot
+from app.services import admin_accounts, admin_sessions, audit, onebot
 from app.services.admin import dashboard, files, jobs, resources
 from app.services.admin.runtime import database, hub, valid_topic
 from app.services.tencentcloud_tms_config import get_tms_config, tms_config_out, update_tms_config
@@ -71,13 +75,8 @@ class Method:
 
 
 def authenticate(session: Session, token: str) -> tuple[int, float]:
-    try:
-        payload = decode_access_token(token)
-    except ValueError as exc:
-        raise HTTPException(401, "登录已失效") from exc
-    admin = session.exec(select(Admin).where(Admin.username == payload.get("sub"))).first()
-    if admin is None:
-        raise HTTPException(401, "管理员不存在")
+    admin = admin_accounts.resolve_token(session, token)
+    payload = decode_access_token(token)
     return admin.id, float(payload["exp"])
 
 
@@ -102,13 +101,14 @@ def cloud_read(session):
 
 
 def cloud_write(session, params, admin_id):
-    config = update_tms_config(session, params)
+    before = cloud_read(session)
+    config = update_tms_config(session, params, commit=False)
     session.add(
         AuditLog(
             admin_id=admin_id,
             action="cloud.update",
             target=str(config.id),
-            detail={"secret_key_configured": bool(config.secret_key)},
+            detail={"before": before, "after": tms_config_out(config)},
         )
     )
     session.commit()
@@ -120,6 +120,7 @@ def image_review_read(session):
 
 
 def image_review_write(session, params, admin_id):
+    before = image_review_read(session)
     config = update_image_review_config(session, params)
     session.add(
         AuditLog(
@@ -127,6 +128,8 @@ def image_review_write(session, params, admin_id):
             action="image-review.update",
             target=str(config.id),
             detail={
+                "before": before,
+                "after": image_review_config_out(config),
                 "enabled": config.enabled,
                 "channels": len(config.channels),
             },
@@ -252,6 +255,23 @@ def build_methods() -> dict[str, Method]:
         True,
         ImageReviewConfigOut,
     )
+
+    async def create_admin(params, actor_id, *_):
+        return await database(admin_accounts.create, params, actor_id)
+
+    async def update_admin(params, actor_id, *_):
+        return await database(admin_accounts.update, params, actor_id)
+
+    async def reset_password(params, actor_id, *_):
+        return await database(admin_accounts.reset_password, params, actor_id)
+
+    async def reset_totp(params, actor_id, *_):
+        return await database(admin_accounts.reset_totp, params.id, actor_id)
+
+    methods["admins.create"] = Method(AdminCreateIn, create_admin, True, AdminProfile)
+    methods["admins.update"] = Method(AdminUpdateIn, update_admin, True, AdminProfile)
+    methods["admins.reset-password"] = Method(AdminPasswordIn, reset_password, True, OkOut)
+    methods["admins.reset-2fa"] = Method(IdInput, reset_totp, True, OkOut)
     return methods
 
 
@@ -263,7 +283,7 @@ def error_payload(exc: Exception) -> dict:
         return {
             "code": "VALIDATION_ERROR",
             "message": "请求参数不正确",
-            "details": exc.errors(include_context=False),
+            "details": exc.errors(include_context=False, include_input=False),
         }
     if isinstance(exc, IntegrityError):
         return {"code": "CONFLICT", "message": "记录已存在或正在被修改"}
@@ -282,7 +302,7 @@ def error_payload(exc: Exception) -> dict:
         return {"code": "BOT_UNAVAILABLE", "message": str(exc)}
     from nonebot import logger
 
-    logger.opt(exception=exc).error("管理 WS 请求失败")
+    logger.error(f"管理 WS 请求失败：error={type(exc).__name__}")
     return {"code": "INTERNAL_ERROR", "message": "操作失败，请查看服务端日志"}
 
 
@@ -296,6 +316,13 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         and origin not in settings.cors_origin_list
         and origin != own_origin
     ):
+        await database(
+            audit.record,
+            "auth.ws.origin",
+            status="failed",
+            details={"origin": origin},
+            **audit.request_context(None, ws),
+        )
         await ws.close(code=1008)
         return
     await ws.accept()
@@ -311,6 +338,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             raise HTTPException(401, "请先认证")
         credentials = AuthInput.model_validate(request.params)
         admin_id, expires = await database(authenticate, credentials.token)
+        identity = await database(admin_accounts.profile, credentials.token)
+        await database(
+            audit.record, "auth.ws.connect", **audit.request_context(identity, ws, request.id)
+        )
         await ws.send_json(
             {
                 "v": 1,
@@ -323,6 +354,13 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
             exc = HTTPException(401, "认证超时")
         try:
+            await database(
+                audit.record,
+                "auth.ws.connect",
+                status="failed",
+                details={"error_code": error_payload(exc)["code"]},
+                **audit.request_context(None, ws, request_id),
+            )
             await ws.send_json(
                 {"v": 1, "type": "response", "id": request_id, "error": error_payload(exc)}
             )
@@ -333,6 +371,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     queue: asyncio.Queue = asyncio.Queue(maxsize=64)
     subscriptions: set[str] = set()
     hub.listeners[queue] = subscriptions
+    admin_sessions.register(admin_id, queue)
     pending: set[asyncio.Task] = set()
     in_flight: set[str] = set()
     write_lock = asyncio.Lock()
@@ -351,13 +390,25 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     async def handle(request):
         response = {"v": 1, "type": "response", "id": request.id}
+        started = time.perf_counter()
+        actor_context = audit.request_context(identity, ws, request.id)
+        context_token = audit.context.set(actor_context)
+        method = METHODS.get(request.method)
         try:
             if time.time() >= expires:
                 raise HTTPException(401, "登录已失效")
+            current = await database(admin_accounts.profile, credentials.token)
+            actor_context.update(actor_username=current.username, actor_name=current.display_name)
+            if request.method.startswith("admins.") and current.role != "superadmin":
+                raise HTTPException(403, "只有超级管理员可以管理后台账号")
             if request.method in {"subscribe", "unsubscribe"}:
                 params = TopicsInput.model_validate(request.params)
                 if any(not valid_topic(topic) for topic in params.topics):
                     raise HTTPException(422, "订阅主题不存在")
+                if current.role != "superadmin" and any(
+                    topic.split(":")[0] == "admins" for topic in params.topics
+                ):
+                    raise HTTPException(403, "只有超级管理员可以订阅账号变更")
                 if request.method == "subscribe":
                     if len(subscriptions | set(params.topics)) > 64:
                         raise HTTPException(422, "订阅数量超限")
@@ -383,6 +434,32 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             response["error"] = error_payload(exc)
         finally:
             in_flight.discard(request.id)
+            if request.method not in {"ping", "subscribe", "unsubscribe"} or "error" in response:
+                details = {"params": request.params, "write": bool(method and method.write)}
+                if "error" in response:
+                    details["error_code"] = response["error"]["code"]
+                elif isinstance(response.get("result"), dict):
+                    details["result"] = {
+                        key: response["result"][key]
+                        for key in ("id", "kind", "status", "total")
+                        if key in response["result"]
+                    }
+                try:
+                    await database(
+                        audit.record,
+                        f"rpc.{request.method}",
+                        details=details,
+                        target=str(request.params.get("id", request.params.get("group_id", ""))),
+                        status="failed" if "error" in response else "success",
+                        duration_ms=int((time.perf_counter() - started) * 1000),
+                    )
+                except Exception:
+                    response.pop("result", None)
+                    response["error"] = {
+                        "code": "INTERNAL_ERROR",
+                        "message": "审计记录写入失败，请查看服务日志",
+                    }
+            audit.context.reset(context_token)
         if queue.full():
             await ws.close(code=1013)
         else:
@@ -406,15 +483,24 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 pending.add(task)
                 task.add_done_callback(pending.discard)
             except (ValidationError, HTTPException) as exc:
+                await database(
+                    audit.record,
+                    "rpc.invalid-request",
+                    status="failed",
+                    details={"error_code": error_payload(exc)["code"]},
+                    **audit.request_context(identity, ws, request_id),
+                )
                 await queue.put(
                     {"v": 1, "type": "response", "id": request_id, "error": error_payload(exc)}
                 )
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
+        admin_sessions.unregister(admin_id, queue)
         hub.listeners.pop(queue, None)
         sender.cancel()
         expiration.cancel()
         for task in pending:
             task.cancel()
         await asyncio.gather(sender, expiration, *pending, return_exceptions=True)
+        await database(audit.record, "auth.ws.disconnect", **audit.request_context(identity, ws))

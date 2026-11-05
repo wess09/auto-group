@@ -8,6 +8,26 @@
     </v-tabs>
     <div class="toolbar">
       <GroupPicker v-if="tab !== 'audits'" v-model="groupId" label-text="筛选群（可清空）" />
+      <v-text-field
+        v-if="tab === 'audits'"
+        v-model="adminId"
+        label="管理员 ID（可选）"
+        type="number"
+        min="1"
+        hide-details
+      />
+      <v-select
+        v-if="tab === 'audits'"
+        v-model="status"
+        label="操作结果"
+        :items="[
+          { title: '全部', value: '' },
+          { title: '成功', value: 'success' },
+          { title: '失败', value: 'failed' },
+          { title: '历史记录', value: 'legacy' },
+        ]"
+        hide-details
+      />
       <v-text-field v-model="startDate" label="开始日期" type="date" hide-details />
       <v-text-field v-model="endDate" label="结束日期（含当天）" type="date" hide-details />
     </div>
@@ -50,6 +70,8 @@ const tab = ref<'joins' | 'leaves' | 'audits'>(
   groupId = ref<number | null>(state?.group || null)
 const startDate = ref(state?.startDate || ''),
   endDate = ref(state?.endDate || '')
+const adminId = ref(''),
+  status = ref('')
 const { open: dialog, query: detailQuery, show: showDetail } = useResourceDetail(() => tab.value)
 const loading = computed(() => detailQuery.isFetching.value)
 const detail = computed(() =>
@@ -57,6 +79,8 @@ const detail = computed(() =>
 )
 const filters = computed(() => ({
   group_id: tab.value === 'audits' ? undefined : groupId.value || undefined,
+  admin_id: tab.value === 'audits' && Number(adminId.value) > 0 ? Number(adminId.value) : undefined,
+  status: tab.value === 'audits' && status.value ? status.value : undefined,
   start_date: startDate.value || undefined,
   end_date: endDate.value
     ? new Date(new Date(endDate.value).getTime() + 86400000).toISOString().slice(0, 10)
@@ -83,8 +107,13 @@ const headers = computed(() => {
             ['操作者', 'operator_id'],
           ]
         : [
+            ['管理员', 'actor_username'],
+            ['姓名', 'actor_name'],
             ['动作', 'action'],
             ['目标', 'target'],
+            ['结果', 'status'],
+            ['来源 IP', 'client_ip'],
+            ['渠道', 'transport'],
           ]
   return [...fields, ['时间', 'created_at'], ['操作', 'actions']].map(([title, key]) => ({
     title,

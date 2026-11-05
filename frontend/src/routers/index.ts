@@ -60,6 +60,12 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'events', name: 'events', component: EventsView, meta: { title: '事件日志' } },
       {
+        path: 'admins',
+        name: 'admins',
+        component: () => import('../views/AdminsView.vue'),
+        meta: { title: '管理员管理' },
+      },
+      {
         path: 'security',
         name: 'security',
         component: () => import('../views/SecurityView.vue'),
@@ -75,13 +81,22 @@ const router = createRouter({
   scrollBehavior: () => ({ left: 0, top: 0 }),
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const userStore = useUserStore()
   if (isAdminPath(to.path) && !isLoginPath(to.path) && !userStore.token) {
     return adminPath('login')
   }
   if (isLoginPath(to.path) && userStore.token) {
     return adminBase
+  }
+  if (isAdminPath(to.path) && !isLoginPath(to.path) && userStore.token) {
+    try {
+      await userStore.loadProfile()
+    } catch {
+      if (!userStore.token) return adminPath('login')
+      throw new Error('无法读取当前管理员信息，请检查后端连接')
+    }
+    if (to.name === 'admins' && !userStore.isSuperadmin) return adminBase
   }
 })
 

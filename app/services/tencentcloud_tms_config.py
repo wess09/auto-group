@@ -18,7 +18,7 @@ def get_tms_config(session: Session) -> TencentCloudTmsConfig:
 
 
 def update_tms_config(
-    session: Session, payload: TencentCloudTmsConfigIn
+    session: Session, payload: TencentCloudTmsConfigIn, *, commit: bool = True
 ) -> TencentCloudTmsConfig:
     config = get_tms_config(session)
     config.secret_id = payload.secret_id.strip()
@@ -30,8 +30,11 @@ def update_tms_config(
     config.timeout_seconds = payload.timeout_seconds
     config.updated_at = datetime.now(timezone.utc)
     session.add(config)
-    session.commit()
-    session.refresh(config)
+    if commit:
+        session.commit()
+        session.refresh(config)
+    else:
+        session.flush()
     return config
 
 

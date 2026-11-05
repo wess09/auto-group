@@ -9,6 +9,7 @@ export type PageInput = {
   enabled?: boolean
   status?: string
   job_id?: number
+  admin_id?: number
   start_date?: string
   end_date?: string
 }
@@ -78,6 +79,7 @@ export type Trend = {
   leave_events: number
 }
 export type Resource =
+  | 'admins'
   | 'groups'
   | 'rules'
   | 'blacklist'
@@ -131,6 +133,10 @@ export type ApiMethods = {
   [K in JobKind]: Method<JobInput, JobRef>
 } & {
   'groups.options': Method<PageInput, PageResult<GroupOption>>
+  'admins.create': Method<AdminCreateIn, AdminProfile>
+  'admins.update': Method<AdminUpdateIn, AdminProfile>
+  'admins.reset-password': Method<AdminPasswordIn, { ok: boolean }>
+  'admins.reset-2fa': Method<{ id: number }, { ok: boolean }>
   'groups.move': Method<{ group_id: number; position: number }, { ok: boolean }>
   'files.browse': Method<
     PageInput & { group_id: number; folder_id?: string },
@@ -178,4 +184,6 @@ export type ApiMethods = {
 }
 import type { ResourceRows, ResourceDetails, ResourceInputs } from './generated'
 import type { ImageReviewConfigIn, ImageReviewConfigOut } from './generated'
+import type { AdminProfile, AdminCreateIn, AdminUpdateIn, AdminPasswordIn } from './generated'
+export type { AdminProfile } from './generated'
 export type { ResourceRows, ResourceDetails, ResourceInputs } from './generated'

@@ -327,6 +327,13 @@ class Admin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     password_hash: str
+    display_name: str = ""
+    role: str = "admin"
+    enabled: bool = True
+    token_version: int = 0
+    last_login_at: datetime | None = None
+    last_login_ip: str = ""
+    updated_at: datetime = Field(default_factory=now_utc)
     totp_secret: str = ""
     totp_enabled: bool = False
     created_at: datetime = Field(default_factory=now_utc)
@@ -336,7 +343,15 @@ class AuditLog(SQLModel, table=True):
     __tablename__: ClassVar[str] = "audit_logs"
 
     id: int | None = Field(default=None, primary_key=True)
-    admin_id: int | None = None
+    admin_id: int | None = Field(default=None, index=True)
+    actor_username: str = ""
+    actor_name: str = ""
+    client_ip: str = ""
+    user_agent: str = ""
+    request_id: str = ""
+    transport: str = "system"
+    status: str = "success"
+    duration_ms: int = 0
     action: str = Field(index=True)
     target: str = ""
     detail: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

@@ -47,6 +47,23 @@ def _upgrade_sqlite_schema() -> None:
         "admins": {
             "totp_secret": "VARCHAR NOT NULL DEFAULT ''",
             "totp_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "display_name": "VARCHAR NOT NULL DEFAULT ''",
+            "role": "VARCHAR NOT NULL DEFAULT 'superadmin'",
+            "enabled": "BOOLEAN NOT NULL DEFAULT 1",
+            "token_version": "INTEGER NOT NULL DEFAULT 0",
+            "last_login_at": "DATETIME",
+            "last_login_ip": "VARCHAR NOT NULL DEFAULT ''",
+            "updated_at": "DATETIME",
+        },
+        "audit_logs": {
+            "actor_username": "VARCHAR NOT NULL DEFAULT ''",
+            "actor_name": "VARCHAR NOT NULL DEFAULT ''",
+            "client_ip": "VARCHAR NOT NULL DEFAULT ''",
+            "user_agent": "VARCHAR NOT NULL DEFAULT ''",
+            "request_id": "VARCHAR NOT NULL DEFAULT ''",
+            "transport": "VARCHAR NOT NULL DEFAULT 'system'",
+            "status": "VARCHAR NOT NULL DEFAULT 'legacy'",
+            "duration_ms": "INTEGER NOT NULL DEFAULT 0",
         },
     }
     with engine.begin() as connection:
@@ -63,6 +80,21 @@ def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     _upgrade_sqlite_schema()
     with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE admins SET updated_at = created_at WHERE updated_at IS NULL")
+        )
+        connection.execute(
+            text(
+                "UPDATE audit_logs SET actor_username = COALESCE("
+                "(SELECT username FROM admins WHERE admins.id = audit_logs.admin_id), '') "
+                "WHERE actor_username = '' AND admin_id IS NOT NULL"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_audit_logs_actor ON audit_logs (admin_id, created_at, id)"
+            )
+        )
         for table, columns in (
             ("join_requests", "created_at, id"),
             ("leave_events", "created_at, id"),
@@ -94,6 +126,7 @@ def init_db() -> None:
                 Admin(
                     username=settings.admin_username,
                     password_hash=hash_password(settings.admin_password),
+                    role="superadmin",
                 )
             )
         session.commit()

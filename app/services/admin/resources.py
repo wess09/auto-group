@@ -6,6 +6,7 @@ from sqlalchemy import String, cast, or_
 from sqlmodel import Session, col, func, select
 
 from app.models import (
+    Admin,
     Announcement,
     AnswerRule,
     AuditLog,
@@ -38,9 +39,11 @@ from app.schemas.admin import (
 from app.schemas.rpc import MoveInput, PageInput, PageResult, Selection, WriteInput
 from app.schemas.resources import LIST_MODELS, DETAIL_MODELS
 from app.services.admin.notices import content_text
+from app.schemas.admin import AdminProfile
 
 
 RESOURCES = {
+    "admins": (Admin, None, None),
     "groups": (ManagedGroup, ManagedGroupIn, ManagedGroupPatch),
     "rules": (AnswerRule, AnswerRuleIn, AnswerRulePatch),
     "blacklist": (JoinBlacklist, JoinBlacklistIn, JoinBlacklistPatch),
@@ -57,12 +60,12 @@ RESOURCES = {
     "jobs": (AdminJob, None, None),
     "job-items": (AdminJobItem, None, None),
 }
-HEAVY_FIELDS = {"raw_event", "raw_data", "detail", "params"}
+HEAVY_FIELDS = {"raw_event", "raw_data", "detail", "params", "user_agent"}
 
 
 def conditions(model: Any, params: PageInput) -> list[Any]:
     terms = []
-    for name in ("group_id", "enabled", "status", "job_id"):
+    for name in ("group_id", "enabled", "status", "job_id", "admin_id"):
         value = getattr(params, name)
         if value is not None and hasattr(model, name):
             terms.append(getattr(model, name) == value)
@@ -71,6 +74,12 @@ def conditions(model: Any, params: PageInput) -> list[Any]:
             getattr(model, name)
             for name in (
                 "name",
+                "username",
+                "display_name",
+                "actor_username",
+                "actor_name",
+                "client_ip",
+                "request_id",
                 "file_name",
                 "title",
                 "nickname",
@@ -104,6 +113,8 @@ def conditions(model: Any, params: PageInput) -> list[Any]:
 
 
 def serialize(row: Any, detail: bool = False) -> dict[str, Any]:
+    if isinstance(row, Admin):
+        return AdminProfile.model_validate(row).model_dump(mode="json")
     data = row.model_dump(mode="json")
     if isinstance(row, Announcement):
         data["content"] = content_text(data["content"])
@@ -172,12 +183,14 @@ def write_resource(
     if create_schema is None:
         raise HTTPException(400, "该资源不能直接修改")
     if action == "create":
+        before = None
         data = create_schema.model_validate(params.data).model_dump()
         item = model(**data)
     else:
         item = session.get(model, params.id)
         if item is None:
             raise HTTPException(404, "记录不存在")
+        before = serialize(item, detail=True)
         data = patch_schema.model_validate(params.data).model_dump(exclude_unset=True)
         # Reject null for non-nullable fields, while allowing a global rule's group_id.
         if any(value is None and key != "group_id" for key, value in data.items()):
@@ -192,7 +205,11 @@ def write_resource(
             admin_id=admin_id,
             action=f"{resource}.{action}",
             target=str(item.id),
-            detail=params.data,
+            detail={
+                "changes": params.data,
+                "before": before,
+                "after": serialize(item, detail=True),
+            },
         )
     )
     session.commit()
@@ -209,8 +226,16 @@ def delete_resource(session: Session, resource: str, item_id: int, admin_id: int
     item = session.get(model, item_id)
     if item is None:
         raise HTTPException(404, "记录不存在")
+    before = serialize(item, detail=True)
     session.delete(item)
-    session.add(AuditLog(admin_id=admin_id, action=f"{resource}.delete", target=str(item_id)))
+    session.add(
+        AuditLog(
+            admin_id=admin_id,
+            action=f"{resource}.delete",
+            target=str(item_id),
+            detail={"before": before},
+        )
+    )
     session.commit()
     return {"ok": True}
 
@@ -228,13 +253,24 @@ def move_group(session: Session, params: MoveInput, admin_id: int) -> dict:
         raise HTTPException(404, "群不存在")
     if params.position > len(rows):
         raise HTTPException(422, "目标位置超出范围")
+    before = [{"group_id": row.group_id, "priority": row.priority} for row in rows]
     rows.remove(item)
     rows.insert(params.position - 1, item)
     for index, row in enumerate(rows):
         row.priority = max(1000, len(rows) * 10) - index * 10
         row.updated_at = datetime.now(timezone.utc)
         session.add(row)
-    session.add(AuditLog(admin_id=admin_id, action="groups.move", target=str(params.group_id)))
+    session.add(
+        AuditLog(
+            admin_id=admin_id,
+            action="groups.move",
+            target=str(params.group_id),
+            detail={
+                "before": before,
+                "after": [{"group_id": row.group_id, "priority": row.priority} for row in rows],
+            },
+        )
+    )
     session.commit()
     return {"ok": True}
 

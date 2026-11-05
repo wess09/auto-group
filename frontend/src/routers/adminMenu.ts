@@ -13,6 +13,7 @@ import {
   mdiProgressClock,
   mdiOpenInNew,
   mdiLockCheckOutline,
+  mdiAccountCogOutline,
 } from '@mdi/js'
 import { adminBase, adminPath } from '../adminRoute'
 import { appName } from '../branding'
@@ -30,6 +31,12 @@ export const adminMenuItems = [
   { path: adminPath('events'), title: '事件日志', icon: mdiTextBoxOutline },
   { path: adminPath('jobs'), title: '后台任务', icon: mdiProgressClock },
   { path: adminPath('security'), title: '账号安全', icon: mdiLockCheckOutline },
+  {
+    path: adminPath('admins'),
+    title: '管理员管理',
+    icon: mdiAccountCogOutline,
+    superadminOnly: true,
+  },
   { path: '/join', title: '公开入口', icon: mdiOpenInNew },
 ]
 export function titleByPath(path: string) {

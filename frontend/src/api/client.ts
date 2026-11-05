@@ -36,6 +36,7 @@ export function expireLogin() {
 socket.onAuthExpired = expireLogin
 window.addEventListener('storage', (event) => {
   if (event.key === 'token' && !event.newValue) expireLogin()
+  else if (event.key === 'token' && event.newValue !== event.oldValue) location.reload()
 })
 api.interceptors.response.use(
   (response) => response,

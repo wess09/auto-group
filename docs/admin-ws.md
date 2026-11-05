@@ -14,6 +14,22 @@
 
 认证成功响应包含 `admin_id` 与 `expires_at`。认证失败或 JWT 到期关闭码为 `4001`；非法来源为 `1008`。客户端收到登录失效后关闭连接、清空缓存与页面状态并返回登录页。队列拥塞关闭码为 `1013`，客户端通过重新查询恢复。
 
+## 多管理员与审计
+
+`GET /api/auth/me` 返回当前账号的 `id,username,display_name,role,enabled,totp_enabled` 和登录时间等资料，不含密码哈希或 TOTP 密钥。`role` 为 `superadmin` 或 `admin`；仅超级管理员可调用 `admins.*` 或订阅 `admins`，所有权限均由后端验证。
+
+| 方法 | 参数与返回 |
+| --- | --- |
+| `admins.list / admins.get` | 分页输入 / `{id}` → 脱敏管理员资料 |
+| `admins.create` | `{username,password,display_name?,role?}` → 管理员资料，默认普通管理员 |
+| `admins.update` | `{id,display_name?,role?,enabled?}` → 管理员资料 |
+| `admins.reset-password` | `{id,password}` → `{ok:true}` |
+| `admins.reset-2fa` | `{id}` → `{ok:true}` |
+
+新密码长度 8–128 位。账号不能删除、用户名不能修改；当前登录账号不能自我停用或降级。停用、角色/凭据变更和注销会提升数据库中的登录版本，HTTP 及每条 WS 请求都校验该版本，已连接的 WS 会在提交成功后以 `4001` 断开。失败或回滚不会撤销登录。`POST /api/auth/password` 接受 `{current_password,new_password,totp_code?}`，注销使用 `POST /api/auth/logout`；注销使该账号的所有会话失效。
+
+`audits` 的分页输入新增 `admin_id`，`status` 可筛选 `success/failed/legacy`（`legacy` 表示旧记录没有结果字段），`q` 可搜索账号、姓名、IP 和请求编号。记录新增 `actor_username,actor_name,client_ip,request_id,transport,status,duration_ms`，详情还含 `user_agent`、脱敏参数及业务变更前后值。日志只读；业务审计与 `http.*` / `rpc.*` 请求记录分别保留，正常心跳和订阅维护不记录。读取审计日志不会触发审计主题重新推送，以免形成刷新循环。
+
 ## 消息格式
 
 请求：

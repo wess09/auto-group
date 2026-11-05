@@ -136,6 +136,9 @@ watch(
 )
 function format(value: unknown, key: string) {
   if (value === undefined || value === null || value === '') return '—'
+  if (key === 'role' && value === 'superadmin') return '超级管理员'
+  if (key === 'role' && value === 'admin') return '普通管理员'
+  if (key === 'status' && value === 'legacy') return '历史记录'
   if (key.endsWith('_at') && typeof value === 'string')
     return new Date(
       value.endsWith('Z') || /[+-]\d\d:\d\d$/.test(value) ? value : value + 'Z',

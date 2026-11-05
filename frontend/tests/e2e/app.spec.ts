@@ -135,6 +135,68 @@ test('group image verification can be enabled and persists after reload', async 
   await expect(dialog).toBeHidden()
 })
 
+test('independent admin accounts have restricted menus and attributable audit records', async ({
+  page,
+  browser,
+}) => {
+  await login(page)
+  await page.goto('/#/admin/admins')
+  await expect(page.getByRole('heading', { name: '管理员管理', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '新增管理员', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('登录账号', { exact: true }).fill('browser-admin')
+  await dialog.getByLabel('姓名或备注名', { exact: true }).fill('值班管理员')
+  await dialog.getByLabel('初始密码', { exact: true }).fill('browser-admin-password')
+  await dialog.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  const accountRow = page
+    .getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: 'browser-admin', exact: true }) })
+  await expect(accountRow.getByRole('cell', { name: '普通管理员', exact: true })).toBeVisible()
+  await page.screenshot({
+    path: test.info().outputPath('admins.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  const response = await page.request.post('http://127.0.0.1:8080/api/auth/login', {
+    data: { username: 'browser-admin', password: 'browser-admin-password' },
+  })
+  expect(response.ok()).toBe(true)
+  const { access_token } = await response.json()
+  const context = await browser.newContext()
+  try {
+    await context.addInitScript((token) => localStorage.setItem('token', token), access_token)
+    const member = await context.newPage()
+    await member.goto('http://127.0.0.1:5173/#/admin')
+    await expect(member.getByRole('heading', { name: '仪表盘', exact: true })).toBeVisible()
+    await expect(member.getByRole('link', { name: '管理员管理', exact: true })).toHaveCount(0)
+    await member.goto('http://127.0.0.1:5173/#/admin/admins')
+    await expect(member.getByRole('heading', { name: '仪表盘', exact: true })).toBeVisible()
+    await accountRow.getByRole('button', { name: '编辑', exact: true }).click()
+    await dialog.getByLabel('允许登录', { exact: true }).uncheck()
+    await dialog.getByRole('button', { name: '保存', exact: true }).click()
+    await expect(dialog).toBeHidden()
+    await expect(member.getByRole('button', { name: '登录', exact: true })).toBeVisible()
+  } finally {
+    await context.close()
+  }
+  await page.goto('/#/admin/events')
+  await page.getByRole('tab', { name: '操作日志', exact: true }).click()
+  await page.getByLabel('搜索', { exact: true }).fill('admins.create')
+  const auditRow = page
+    .getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: 'admins.create', exact: true }) })
+  await expect(auditRow.getByRole('cell', { name: 'admin', exact: true })).toBeVisible()
+  await auditRow.getByRole('button', { name: '详情', exact: true }).click()
+  await expect(dialog.locator('pre')).toContainText('browser-admin')
+  await expect(dialog.locator('pre')).not.toContainText('browser-admin-password')
+  await page.screenshot({
+    path: test.info().outputPath('admin-audit.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
+})
+
 test('recall administrators can be managed by QQ number', async ({ page }) => {
   await login(page)
   await page.goto('/#/admin/recall')
@@ -163,7 +225,7 @@ test('hidden dashboard sections and closed cloud settings are lazy', async ({ pa
   )
   await page.goto('/#/admin')
   await expect(page.getByText('今日消息', { exact: true })).toBeVisible()
-  expect(methods).toContain('dashboard.summary')
+  await expect.poll(() => methods.includes('dashboard.summary')).toBe(true)
   expect(methods).not.toContain('dashboard.rankings')
   expect(methods).not.toContain('dashboard.recent')
   await page.locator('[data-section="rankings"]').scrollIntoViewIfNeeded()
@@ -262,8 +324,9 @@ test('mobile navigation supports keyboard focus and reduced motion', async ({ pa
   await page.setViewportSize({ width: 390, height: 900 })
   await page.goto('/#/admin/groups')
   await expect(page.locator('.v-application')).toHaveClass(/v-theme--dark/)
-  await page.keyboard.press('Tab')
   const navigation = page.getByRole('button', { name: '打开导航', exact: true })
+  await expect(navigation).toBeVisible()
+  await page.keyboard.press('Tab')
   await expect(navigation).toBeFocused()
   await expect(navigation).toHaveCSS('outline-style', 'solid')
   const duration = await navigation.evaluate((element) =>

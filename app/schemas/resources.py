@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict, create_model
 
 from app.models import (
+    Admin,
     Announcement,
     AnswerRule,
     AuditLog,
@@ -26,6 +27,11 @@ class ResourceOut(BaseModel):
 
 COMMON = "id created_at updated_at"
 RESOURCE_FIELDS = {
+    "admins": (
+        Admin,
+        COMMON + " username display_name role enabled totp_enabled last_login_at last_login_ip",
+        "",
+    ),
     "groups": (
         ManagedGroup,
         COMMON
@@ -67,7 +73,11 @@ RESOURCE_FIELDS = {
         "raw_event",
     ),
     "leaves": (LeaveEvent, "id group_id user_id operator_id sub_type created_at", "raw_event"),
-    "audits": (AuditLog, "id admin_id action target created_at", "detail"),
+    "audits": (
+        AuditLog,
+        "id admin_id actor_username actor_name action target created_at status client_ip request_id transport duration_ms",
+        "detail user_agent",
+    ),
     "actions": (
         DedupeAction,
         "id job_id user_id keep_group_id kick_group_id nickname status error created_at executed_at",

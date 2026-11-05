@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 from app.models.entities import LogicMode, MatchMode, MessageModerationAction
 from app.services.image_review_policy import DEFAULT_IMAGE_REVIEW_PROMPT
@@ -17,6 +17,12 @@ class TotpCodeIn(BaseModel):
     code: str
 
 
+class PasswordChangeIn(BaseModel):
+    current_password: SecretStr
+    new_password: SecretStr = Field(min_length=8, max_length=128)
+    totp_code: str = ""
+
+
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -24,6 +30,39 @@ class TokenOut(BaseModel):
 
 class AdminInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class AdminCreateIn(AdminInput):
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[\w.@-]+$")
+    password: SecretStr = Field(min_length=8, max_length=128)
+    display_name: str = Field(default="", max_length=80)
+    role: Literal["superadmin", "admin"] = "admin"
+
+
+class AdminUpdateIn(AdminInput):
+    id: int = Field(gt=0)
+    display_name: str | None = Field(default=None, max_length=80)
+    role: Literal["superadmin", "admin"] | None = None
+    enabled: bool | None = None
+
+
+class AdminPasswordIn(AdminInput):
+    id: int = Field(gt=0)
+    password: SecretStr = Field(min_length=8, max_length=128)
+
+
+class AdminProfile(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    display_name: str
+    role: Literal["superadmin", "admin"]
+    enabled: bool
+    totp_enabled: bool
+    last_login_at: datetime | None
+    last_login_ip: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class ManagedGroupIn(AdminInput):
