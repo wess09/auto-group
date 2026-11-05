@@ -2,7 +2,7 @@
   <main class="auth-wrap">
     <v-card class="auth-card surface-card">
       <div class="text-label-large text-primary mb-4">群管理工作台</div>
-      <h1>Auto Group</h1>
+      <h1>{{ appName }}</h1>
       <p>登录后管理群配置、内容与自动化规则。</p>
       <v-form @submit.prevent="submit">
         <v-text-field v-model="form.username" label="账号" autocomplete="username" autofocus />
@@ -14,7 +14,13 @@
           :append-inner-icon="showPassword ? mdiEyeOff : mdiEye"
           @click:append-inner="showPassword = !showPassword"
         />
-        <v-text-field v-model="form.totp_code" label="动态验证码（启用双因素认证时填写）" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+        <v-text-field
+          v-model="form.totp_code"
+          label="动态验证码（启用双因素认证时填写）"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+        />
         <div id="aliyun-captcha-element" />
         <button
           id="aliyun-captcha-button"
@@ -38,6 +44,7 @@ import axios from 'axios'
 import { api } from '../api/client'
 import { adminBase } from '../adminRoute'
 import { useUserStore } from '../stores/modules/user'
+import { appName } from '../branding'
 
 type AliyunCaptchaConfig = {
   region: string

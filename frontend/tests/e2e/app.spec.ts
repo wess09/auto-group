@@ -24,6 +24,23 @@ test('login and public entry use MD3 without opening a WS connection', async ({ 
   expect(connections).toBe(1)
 })
 
+test('custom build name appears in page titles and branding', async ({ page }) => {
+  await page.goto('/#/join')
+  await expect(page).toHaveTitle('公开入口 - 自动群助手测试')
+  await expect(
+    page.getByText('自动群助手测试 会根据优先级与剩余容量推荐适合加入的群。'),
+  ).toBeVisible()
+  await page.goto('/#/admin/login')
+  await expect(page).toHaveTitle('后台登录 - 自动群助手测试')
+  await expect(page.getByRole('heading', { name: '自动群助手测试', exact: true })).toBeVisible()
+  await login(page)
+  await page.reload()
+  await expect(page).toHaveTitle('仪表盘 - 自动群助手测试')
+  await expect(
+    page.locator('.v-navigation-drawer').getByText('自动群助手测试', { exact: true }),
+  ).toBeVisible()
+})
+
 test('logs request only the selected tab and one page of ten thousand rows', async ({ page }) => {
   await login(page)
   const chunks: string[] = []

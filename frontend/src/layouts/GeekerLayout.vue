@@ -7,7 +7,7 @@
     color="surface-container"
   >
     <v-list-item
-      title="Auto Group"
+      :title="appName"
       subtitle="群管理工作台"
       :prepend-icon="mdiHexagonMultipleOutline"
       class="my-4"
@@ -90,6 +90,7 @@ import { themeMode, type ThemeMode } from '../theme/dynamicTheme'
 import { socket } from '../api/client'
 import { queryClient } from '../api/queries'
 import { pageStates, report } from '../stores/ui'
+import { appName } from '../branding'
 const route = useRoute(),
   router = useRouter(),
   tabsStore = useTabsStore(),

@@ -210,10 +210,25 @@ npm run build
 ```text
 VITE_API_BASE_URL=https://bot.example.com/api
 VITE_ADMIN_ROUTE_PREFIX=/manage-a8f3c2
+VITE_APP_NAME=我的群助手
+VITE_APP_ICON_URL=https://example.com/icon.png
 VITE_ALIYUN_CAPTCHA_REGION=cn
 VITE_ALIYUN_CAPTCHA_PREFIX=esa-xxxxxx
 VITE_ALIYUN_CAPTCHA_SCENE_ID=your-scene-id
 ```
+
+`VITE_APP_NAME` 自定义网站名称，默认 `Auto Group`；会同时用于浏览器标签页、登录页和后台品牌名，例如 `公开入口 - 我的群助手`。`VITE_APP_ICON_URL` 填可直接返回图片的 HTTP/HTTPS 链接，支持 PNG、ICO、SVG、JPEG、GIF、WebP 和 AVIF。运行 `npm run build` 时自动下载图片，作为带内容哈希的 favicon 写入 `dist/assets` 并更新 HTML；部署后浏览器从本站加载，不再请求原始图标链接。留空不设置自定义 favicon。下载超时（15 秒）、HTTP 错误、不支持的响应类型、空文件或超过 2 MiB 会使构建失败，并提示原因。
+
+也可以在构建命令前传入环境变量（PowerShell）：
+
+```powershell
+Set-Location frontend
+$env:VITE_APP_NAME = '我的群助手'
+$env:VITE_APP_ICON_URL = 'https://example.com/icon.png'
+npm run build
+```
+
+修改名称或图标地址后需重新构建并发布 `dist`。本地 `npm run dev` 也支持这两个参数，图标由开发服务器下载后提供；后端 `.env` 不控制前端品牌配置。
 
 启用阿里云 ESA 验证码后，ESA 里的“需验证的接口”填后台登录接口：
 

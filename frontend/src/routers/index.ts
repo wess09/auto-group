@@ -17,6 +17,7 @@ const RecallView = () => import('../views/RecallView.vue')
 import { titleByPath } from './adminMenu'
 import { useTabsStore } from '../stores/modules/tabs'
 import { useUserStore } from '../stores/modules/user'
+import { pageTitle } from '../branding'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/join' },
@@ -58,7 +59,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '后台任务' },
       },
       { path: 'events', name: 'events', component: EventsView, meta: { title: '事件日志' } },
-      { path: 'security', name: 'security', component: () => import('../views/SecurityView.vue'), meta: { title: '账号安全' } },
+      {
+        path: 'security',
+        name: 'security',
+        component: () => import('../views/SecurityView.vue'),
+        meta: { title: '账号安全' },
+      },
     ],
   },
 ]
@@ -80,7 +86,7 @@ router.beforeEach((to) => {
 })
 
 router.afterEach((to) => {
-  document.title = `${String(to.meta.title || titleByPath(to.path))} - Auto Group`
+  document.title = pageTitle(String(to.meta.title || titleByPath(to.path)))
   if (isAdminPath(to.path) && !isLoginPath(to.path)) {
     useTabsStore().addTab({
       path: to.path,

@@ -3,7 +3,7 @@
     <v-card class="auth-card surface-card">
       <v-icon :icon="mdiAccountGroupOutline" size="40" color="primary" class="mb-6" />
       <h1>找到你的群</h1>
-      <p>Auto Group 会根据优先级与剩余容量推荐适合加入的群。</p>
+      <p>{{ appName }} 会根据优先级与剩余容量推荐适合加入的群。</p>
       <v-progress-linear v-if="loading" indeterminate class="mb-4" />
       <QueryError :error="error" @retry="load" />
       <template v-if="group">
@@ -36,6 +36,7 @@ import { onMounted, ref } from 'vue'
 import { mdiAccountGroupOutline, mdiOpenInNew } from '@mdi/js'
 import { api } from '../api/client'
 import QueryError from '../components/QueryError.vue'
+import { appName } from '../branding'
 type PublicGroup = {
   available: boolean
   group_id?: number

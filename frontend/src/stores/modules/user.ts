@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { queryClient } from '../../api/queries'
 import { pageStates } from '../ui'
 import { useTabsStore } from './tabs'
+import { appName } from '../../branding'
 
 type UserInfo = {
   name: string
@@ -11,7 +12,7 @@ export const useUserStore = defineStore('geeker-user', {
   state: () => ({
     token: localStorage.getItem('token') || '',
     userInfo: {
-      name: 'Auto Group',
+      name: appName,
     } as UserInfo,
   }),
   actions: {

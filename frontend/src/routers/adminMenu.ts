@@ -15,6 +15,7 @@ import {
   mdiLockCheckOutline,
 } from '@mdi/js'
 import { adminBase, adminPath } from '../adminRoute'
+import { appName } from '../branding'
 export const adminMenuItems = [
   { path: adminBase, title: '仪表盘', icon: mdiViewDashboardOutline, affix: true },
   { path: adminPath('groups'), title: '群配置', icon: mdiAccountGroupOutline },
@@ -32,5 +33,5 @@ export const adminMenuItems = [
   { path: '/join', title: '公开入口', icon: mdiOpenInNew },
 ]
 export function titleByPath(path: string) {
-  return adminMenuItems.find((item) => item.path === path)?.title || 'Auto Group'
+  return adminMenuItems.find((item) => item.path === path)?.title || appName
 }
