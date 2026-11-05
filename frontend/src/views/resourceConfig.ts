@@ -45,7 +45,7 @@ export const configs: Record<Editable, Config> = {
   },
   groups: {
     title: '群配置',
-    subtitle: '设置群优先级、容量、QQ 等级门槛和答错自动拉黑。优先级越高，越优先推荐。',
+    subtitle: '设置群优先级、容量、QQ 等级门槛、答错自动拉黑和入群图片验证。',
     fields: [
       { key: 'group_id', label: '群号', type: 'number', required: true },
       { key: 'name', label: '群名称' },
@@ -54,6 +54,12 @@ export const configs: Record<Editable, Config> = {
       { key: 'max_members', label: '最大成员数（0 表示不限）', type: 'number' },
       { key: 'current_members', label: '当前成员数', type: 'number' },
       { key: 'join_url', label: '入群链接' },
+      {
+        key: 'join_verification_enabled',
+        label: '入群图片验证码',
+        type: 'switch',
+        hint: '新人进群后 @ 欢迎并发图，在群内回复验证码；答错依次禁言 10、20、30 秒，第 4 次踢出。机器人需为管理员。',
+      },
       {
         key: 'min_qq_level',
         label: '最低 QQ 等级（0 表示不限）',
@@ -91,6 +97,7 @@ export const configs: Record<Editable, Config> = {
       min_qq_level: 0,
       max_wrong_answers: 0,
       wrong_answer_window_hours: 24,
+      join_verification_enabled: false,
       redirect_message_template: '请申请推荐群：{group_name}（{group_id}）。入群链接：{join_url}',
       note: '',
     },
@@ -103,6 +110,7 @@ export const configs: Record<Editable, Config> = {
       ['容量', 'max_members'],
       ['最低等级', 'min_qq_level'],
       ['答错上限', 'max_wrong_answers'],
+      ['入群验证', 'join_verification_enabled'],
       ['状态', 'enabled'],
       ['操作', 'actions'],
     ]),

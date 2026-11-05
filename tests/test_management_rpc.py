@@ -111,6 +111,19 @@ def test_invalid_token_is_rejected(client):
         assert result["error"]["code"] == "AUTH_REQUIRED"
 
 
+def test_group_verification_setting_round_trips_through_rpc(client):
+    with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
+        authenticate(ws)
+        row = call(ws, "groups.create", {"data": {"group_id": 1001}})["result"]
+        assert row["join_verification_enabled"] is False
+        updated = call(
+            ws, "groups.update", {"id": row["id"], "data": {"join_verification_enabled": True}}
+        )["result"]
+        assert updated["join_verification_enabled"] is True
+        assert call(ws, "groups.get", {"id": row["id"]})["result"]["join_verification_enabled"]
+        assert call(ws, "groups.list")["result"]["items"][0]["join_verification_enabled"]
+
+
 def test_authentication_timeout(client):
     with client.websocket_connect("/api/admin/ws", headers={"origin": "http://testserver"}) as ws:
         result = ws.receive_json()

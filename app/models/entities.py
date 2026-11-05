@@ -51,12 +51,41 @@ class ManagedGroup(SQLModel, table=True):
     min_qq_level: int = 0
     max_wrong_answers: int = 0
     wrong_answer_window_hours: int = 24
+    join_verification_enabled: bool = False
     redirect_message_template: str = (
         "请申请推荐群：{group_name}（{group_id}）。入群链接：{join_url}"
     )
     note: str = ""
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
+
+
+class JoinVerification(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "join_verifications"
+    __table_args__ = (UniqueConstraint("bot_id", "group_id", "user_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    bot_id: str
+    group_id: int = Field(index=True)
+    user_id: int
+    joined_event_time: int
+    status: str = "pending"
+    answer_hash: str = ""
+    salt: str = ""
+    delivered: bool = False
+    wrong_attempts: int = 0
+    expires_at: datetime = Field(default_factory=now_utc)
+    retry_after: datetime | None = None
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class JoinVerificationMessage(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "join_verification_messages"
+    __table_args__ = (UniqueConstraint("verification_id", "message_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    verification_id: int = Field(index=True)
+    message_id: int
 
 
 class AnswerRule(SQLModel, table=True):

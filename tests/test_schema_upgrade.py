@@ -20,7 +20,15 @@ def test_startup_upgrades_legacy_sqlite_and_preserves_rows(tmp_path, monkeypatch
         session.commit()
     with engine.begin() as connection:
         for table, fields in (
-            ("managed_groups", ["min_qq_level", "max_wrong_answers", "wrong_answer_window_hours"]),
+            (
+                "managed_groups",
+                [
+                    "min_qq_level",
+                    "max_wrong_answers",
+                    "wrong_answer_window_hours",
+                    "join_verification_enabled",
+                ],
+            ),
             (
                 "message_moderation_rules",
                 ["cloud_review_enabled", "ocr_enabled", "image_review_enabled"],
@@ -37,6 +45,7 @@ def test_startup_upgrades_legacy_sqlite_and_preserves_rows(tmp_path, monkeypatch
         request = session.exec(select(JoinRequest)).one()
         assert group.name == "原群配置" and group.min_qq_level == group.max_wrong_answers == 0
         assert group.wrong_answer_window_hours == 24
+        assert not group.join_verification_enabled
         assert rule.name == "原审核规则" and not rule.image_review_enabled and not rule.ocr_enabled
         assert request.result == "approved" and request.apply_status == "legacy"
         assert request.qq_level is None and request.wrong_answer_count == 0

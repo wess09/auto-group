@@ -20,7 +20,7 @@ from app.services.message_moderation import (
 from app.services.join_requests import process_join_request
 from app.services.admin import bot_data, jobs
 from app.services.admin.runtime import database
-from app.services import bulk_recall
+from app.services import bulk_recall, join_verification
 from app.services.message_cache import cache_io
 
 
@@ -52,8 +52,16 @@ cache_matcher = on_message(priority=1, block=False)
 
 @cache_matcher.handle()
 async def cache_group_message(bot: Bot, event: GroupMessageEvent, matcher: Matcher) -> None:
-    if await bulk_recall.handle_message(bot, event):
+    verifying = await join_verification.handle_message(bot, event)
+    command = await bulk_recall.handle_message(bot, event, execute_commands=not verifying)
+    # Captcha text is consumed, while images still reach the existing moderation rules.
+    if command or (verifying and not has_image_segments(event)):
         matcher.stop_propagation()
+
+
+@notice_matcher.handle()
+async def handle_join_verification_notice(bot: Bot, event: NoticeEvent) -> None:
+    await join_verification.handle_notice(bot, event)
 
 
 async def sync_group_info_safely(group_id: int) -> None:

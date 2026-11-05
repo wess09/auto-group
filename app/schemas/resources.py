@@ -30,7 +30,8 @@ RESOURCE_FIELDS = {
         ManagedGroup,
         COMMON
         + " group_id name priority enabled max_members current_members join_url min_qq_level"
-        + " max_wrong_answers wrong_answer_window_hours redirect_message_template note",
+        + " max_wrong_answers wrong_answer_window_hours join_verification_enabled"
+        + " redirect_message_template note",
         "",
     ),
     "rules": (AnswerRule, COMMON + " name enabled group_id match_mode logic_mode patterns", ""),

@@ -37,6 +37,7 @@ class ManagedGroupIn(AdminInput):
     min_qq_level: int = Field(default=0, ge=0, le=1000)
     max_wrong_answers: int = Field(default=0, ge=0, le=1000)
     wrong_answer_window_hours: int = Field(default=24, ge=1, le=8760)
+    join_verification_enabled: bool = False
     redirect_message_template: str = (
         "请申请推荐群：{group_name}（{group_id}）。入群链接：{join_url}"
     )
@@ -53,6 +54,7 @@ class ManagedGroupPatch(AdminInput):
     min_qq_level: int | None = Field(default=None, ge=0, le=1000)
     max_wrong_answers: int | None = Field(default=None, ge=0, le=1000)
     wrong_answer_window_hours: int | None = Field(default=None, ge=1, le=8760)
+    join_verification_enabled: bool | None = None
     redirect_message_template: str | None = None
     note: str | None = None
 

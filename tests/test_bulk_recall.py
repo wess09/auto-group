@@ -328,6 +328,18 @@ async def test_event_handler_stops_propagation_only_for_commands(cache, db):
 
 
 @pytest.mark.asyncio
+async def test_unverified_members_messages_are_cached_without_running_commands(cache, monkeypatch):
+    async def unexpected(*args):
+        pytest.fail("unverified members must not execute commands")
+
+    monkeypatch.setattr(bulk_recall, "database", unexpected)
+    bot = FakeBot()
+    assert not await bulk_recall.handle_message(bot, event("/大记忆清除术"), execute_commands=False)
+    assert [row[1] for row in cache.latest("123", 1001, 500, 9999)] == [100]
+    assert not bot.calls and not bot.replies
+
+
+@pytest.mark.asyncio
 async def test_group_recall_notice_updates_the_cache(cache):
     record(cache, 1)
     await events.handle_group_member_change(

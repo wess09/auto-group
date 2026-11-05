@@ -89,6 +89,35 @@ test('CRUD and remote search work through one WS connection', async ({ page }) =
   expect(connections).toBe(1)
 })
 
+test('group image verification can be enabled and persists after reload', async ({ page }) => {
+  await login(page)
+  await page.goto('/#/admin/groups')
+  await page.getByLabel('搜索', { exact: true }).fill('1001')
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.getByRole('button', { name: '编辑', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  const verification = dialog.getByLabel('入群图片验证码', { exact: true })
+  await expect(verification).not.toBeChecked()
+  await verification.check()
+  await expect(dialog.getByText(/第 4 次踢出/)).toBeVisible()
+  await page.screenshot({
+    path: test.info().outputPath('join-verification.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await dialog.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '群配置', exact: true })).toBeVisible()
+  await page.getByLabel('搜索', { exact: true }).fill('1001')
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.getByRole('button', { name: '编辑', exact: true }).click()
+  await expect(verification).toBeChecked()
+  await verification.uncheck()
+  await dialog.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(dialog).toBeHidden()
+})
+
 test('recall administrators can be managed by QQ number', async ({ page }) => {
   await login(page)
   await page.goto('/#/admin/recall')

@@ -162,9 +162,9 @@ async def run_command(
         active_groups.discard(key)
 
 
-async def handle_message(bot: RecallBot, event: Any) -> bool:
+async def handle_message(bot: RecallBot, event: Any, *, execute_commands: bool = True) -> bool:
     text = event.get_plaintext()
-    command = is_recall_command(text)
+    command = execute_commands and is_recall_command(text)
     try:
         sequence, created = await cache_io(
             "record",

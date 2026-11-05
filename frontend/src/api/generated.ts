@@ -13,6 +13,7 @@ export type ManagedGroupListOut = {
   min_qq_level: number
   max_wrong_answers: number
   wrong_answer_window_hours: number
+  join_verification_enabled: boolean
   redirect_message_template: string
   note: string
 }
@@ -174,6 +175,7 @@ export type ManagedGroupDetailOut = {
   min_qq_level: number
   max_wrong_answers: number
   wrong_answer_window_hours: number
+  join_verification_enabled: boolean
   redirect_message_template: string
   note: string
 }
@@ -340,6 +342,7 @@ export type ManagedGroupIn = {
   min_qq_level?: number
   max_wrong_answers?: number
   wrong_answer_window_hours?: number
+  join_verification_enabled?: boolean
   redirect_message_template?: string
   note?: string
 }
@@ -353,6 +356,7 @@ export type ManagedGroupPatch = {
   min_qq_level?: number | null
   max_wrong_answers?: number | null
   wrong_answer_window_hours?: number | null
+  join_verification_enabled?: boolean | null
   redirect_message_template?: string | null
   note?: string | null
 }

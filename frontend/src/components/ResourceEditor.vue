@@ -56,7 +56,9 @@
                 v-model="form[field.key]"
                 :label="field.label"
                 color="primary"
-                hide-details
+                :hint="field.hint"
+                :persistent-hint="!!field.hint"
+                :hide-details="!field.hint"
                 class="mb-4"
               />
               <GroupPicker
@@ -70,6 +72,7 @@
                 v-model="form[field.key]"
                 :label="field.label"
                 :items="field.options"
+                class="mb-2"
               />
               <v-textarea
                 v-else-if="field.type === 'textarea'"
@@ -90,6 +93,7 @@
                 :persistent-hint="!!field.hint"
                 :disabled="!!editingId && (field.key === 'group_id' || field.key === 'user_id')"
                 :rules="field.required ? requiredRules : []"
+                class="mb-2"
               />
             </template>
           </v-form>

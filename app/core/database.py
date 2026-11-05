@@ -36,6 +36,7 @@ def _upgrade_sqlite_schema() -> None:
             "min_qq_level": "INTEGER NOT NULL DEFAULT 0",
             "max_wrong_answers": "INTEGER NOT NULL DEFAULT 0",
             "wrong_answer_window_hours": "INTEGER NOT NULL DEFAULT 24",
+            "join_verification_enabled": "BOOLEAN NOT NULL DEFAULT 0",
         },
         "join_requests": {
             "qq_level": "INTEGER",
